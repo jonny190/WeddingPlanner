@@ -97,14 +97,12 @@ function Invitation({ token, view, focusEvent }: { token: string; view: RsvpView
           </p>
         </section>
       ) : (
-        <>
-          <EnvelopeReveal play={sealed} initials={sealInitials(view.couple_names)}>
-            <div className="rsvp-events">
-              {events.map((e) => (
-                <EventInvitation key={e.event_id} event={e} view={view} />
-              ))}
-            </div>
-          </EnvelopeReveal>
+        <EnvelopeReveal play={sealed} initials={sealInitials(view.couple_names)}>
+          <div className="rsvp-events">
+            {events.map((e) => (
+              <EventInvitation key={e.event_id} event={e} view={view} />
+            ))}
+          </div>
 
           <section className="rsvp-panel" aria-labelledby="rsvp-reply-title">
             {editing ? (
@@ -137,7 +135,7 @@ function Invitation({ token, view, focusEvent }: { token: string; view: RsvpView
               />
             )}
           </section>
-        </>
+        </EnvelopeReveal>
       )}
     </article>
   );
