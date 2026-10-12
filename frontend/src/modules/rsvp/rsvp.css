@@ -573,6 +573,60 @@ textarea.rsvp-input {
   color: var(--c-muted);
 }
 
+/* ---------- One sheet of paper ---------- */
+/* The card, its details and the reply questions share a single sheet, so the questions sit under
+   the invitation's own words rather than in a panel floating below it. */
+.rsvp-sheet {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  border-radius: 4px;
+  background: #fff;
+  box-shadow:
+    0 1px 2px rgba(45, 36, 32, 0.08),
+    0 18px 50px rgba(45, 36, 32, 0.16);
+  overflow: hidden;
+  text-align: center;
+}
+
+/* The card art sits flush at the top: the sheet itself is the paper. */
+.rsvp-sheet .rsvp-card-frame {
+  max-width: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.rsvp-sheet .rsvp-events {
+  gap: 0;
+  margin-bottom: 0;
+}
+
+.rsvp-sheet .rsvp-event {
+  gap: 0;
+}
+
+.rsvp-sheet .rsvp-details {
+  max-width: none;
+  padding: 22px 20px 6px;
+}
+
+/* The questions are part of the sheet, marked off by a hairline rather than a floating card. */
+.rsvp-sheet .rsvp-panel {
+  margin-top: 24px;
+  padding: 26px 20px 30px;
+  border: 0;
+  border-top: 1px solid var(--c-border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+}
+
+.rsvp-sheet .rsvp-panel h2 {
+  text-align: center;
+}
+
 @media (min-width: 600px) {
   .public-main {
     padding-top: 56px;
