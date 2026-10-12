@@ -210,8 +210,14 @@ uv run ruff check . && uv run ruff format --check .
 
 The end-to-end suite starts its own API (on a fresh database built by the real migrations)
 and the built web app, then reads the emails the worker "sends" from disk to follow the
-tracked links. GitHub Actions runs all of the above, plus a full `docker compose` build and
-boot, on every push.
+tracked links.
+
+`deploy/smoke_test.py` checks a running Docker stack through nginx. It signs up, sends an
+invitation, confirms the worker delivered it to Mailpit over SMTP, and follows the tracked
+link to the RSVP page. Run it after `make up` with `python3 deploy/smoke_test.py`.
+
+GitHub Actions runs all of the above on every push, including building, booting and
+smoke-testing the full `docker compose` stack.
 
 ### Frontend
 

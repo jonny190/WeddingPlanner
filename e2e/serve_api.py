@@ -27,6 +27,7 @@ from app.modules.notifications.email import build_email_backend  # noqa: E402
 def main() -> None:
     settings = get_settings()
     database = Path(settings.database_url.removeprefix("sqlite:///"))
+    database.parent.mkdir(parents=True, exist_ok=True)
     database.unlink(missing_ok=True)
     shutil.rmtree(settings.email_file_dir, ignore_errors=True)
 
