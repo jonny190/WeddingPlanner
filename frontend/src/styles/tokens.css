@@ -1,0 +1,36 @@
+/* Design tokens. The invitation designer styles against these names (with fallbacks),
+   so keep them stable. */
+:root {
+  --c-bg: #faf7f2;
+  --c-surface: #ffffff;
+  --c-ink: #2d2420;
+  --c-muted: #6f625a;
+  --c-border: #e8dfd5;
+  --c-accent: #7a5c4f;
+  --c-accent-ink: #ffffff;
+  --c-accent-soft: #f1e8e1;
+  --c-success: #5f7d64;
+  --c-warning: #b7791f;
+  --c-danger: #b4473c;
+  --radius: 10px;
+  --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Cormorant Garamond", Georgia, serif;
+
+  /* Derived tokens used by the app shell only. */
+  --c-surface-2: #fdfbf8;
+  --c-border-strong: #d9ccbf;
+  --c-success-soft: #e9f0ea;
+  --c-warning-soft: #fbf1e1;
+  --c-danger-soft: #f7e6e3;
+  --c-info: #4f6a7a;
+  --c-info-soft: #e6eef2;
+  --c-focus: #7a5c4f;
+  --radius-sm: 6px;
+  --radius-lg: 16px;
+  --shadow-sm: 0 1px 2px rgba(45, 36, 32, 0.06);
+  --shadow: 0 1px 3px rgba(45, 36, 32, 0.06), 0 6px 20px rgba(45, 36, 32, 0.06);
+  --shadow-lg: 0 10px 40px rgba(45, 36, 32, 0.18);
+  --header-h: 60px;
+  --sidebar-w: 232px;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
