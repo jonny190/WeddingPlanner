@@ -1,0 +1,7 @@
+# HTTPS front door for production (docker compose --profile tls up -d).
+# Caddy fetches and renews a Let's Encrypt certificate for $DOMAIN automatically;
+# point the domain's DNS at this server and open ports 80 and 443 first.
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy web:80
+}

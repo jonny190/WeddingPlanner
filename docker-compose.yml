@@ -1,0 +1,128 @@
+name: wedding-planner
+
+# Shared by the API, the email worker and the migration job (one image, three roles).
+x-backend: &backend
+  image: wedding-planner/api:local
+  build:
+    context: ./backend
+    target: runtime
+  environment:
+    DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-wedding}:${POSTGRES_PASSWORD:-wedding}@db:5432/${POSTGRES_DB:-wedding}
+    ENVIRONMENT: ${ENVIRONMENT:-development}
+    SECRET_KEY: ${SECRET_KEY:-dev-insecure-secret-change-me-before-deploying}
+    PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:8080}
+    EMAIL_BACKEND: ${EMAIL_BACKEND:-smtp}
+    EMAIL_FROM: ${EMAIL_FROM:-Wedding Planner <invitations@example.com>}
+    SMTP_HOST: ${SMTP_HOST:-mailpit}
+    SMTP_PORT: ${SMTP_PORT:-1025}
+    SMTP_USERNAME: ${SMTP_USERNAME:-}
+    SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+    SMTP_STARTTLS: ${SMTP_STARTTLS:-false}
+    SMTP_SSL: ${SMTP_SSL:-false}
+    MEDIA_ROOT: /data/media
+    # API processes (uvicorn reads this); raise on bigger servers.
+    WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-wedding}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wedding}
+      POSTGRES_DB: ${POSTGRES_DB:-wedding}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  # Applies database migrations, then exits. The API and worker wait for it.
+  migrate:
+    <<: *backend
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    <<: *backend
+    volumes:
+      - media:/data/media
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=4)"
+      interval: 10s
+      timeout: 5s
+      start_period: 15s
+      retries: 10
+    restart: unless-stopped
+
+  # Sends queued invitation emails. Scale with `docker compose up --scale worker=3`.
+  worker:
+    <<: *backend
+    command: ["python", "-m", "app.worker"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  web:
+    build: ./frontend
+    image: wedding-planner/web:local
+    ports:
+      # With the Caddy (HTTPS) profile, set WEB_BIND=127.0.0.1 to keep this port private.
+      - "${WEB_BIND:-0.0.0.0}:${WEB_PORT:-8080}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Development only (`--profile dev`, used by `make up`): catches every outgoing email,
+  # browse them at http://localhost:8025.
+  mailpit:
+    image: axllent/mailpit:v1.31
+    profiles: ["dev"]
+    ports:
+      - "${MAILPIT_PORT:-8025}:8025"
+    restart: unless-stopped
+
+  # Production HTTPS (`--profile tls`): Caddy obtains and renews a certificate for $DOMAIN.
+  caddy:
+    image: caddy:2.11-alpine
+    profiles: ["tls"]
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - web
+    restart: unless-stopped
+
+  # `make test`: runs the backend test suite in a container.
+  tests:
+    build:
+      context: ./backend
+      target: test
+    profiles: ["test"]
+
+volumes:
+  db-data:
+  media:
+  caddy-data:
+  caddy-config:
