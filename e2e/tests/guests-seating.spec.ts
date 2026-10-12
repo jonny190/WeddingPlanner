@@ -28,6 +28,7 @@ test("guests are invited to day and evening independently, and seating keeps riv
   await page.goto(`${W}/guests`);
 
   // Invite Ben to the evening only from the guest table, without touching his day invite.
+  // check() also asserts the box is ticked straight after the click (no optimistic flicker).
   await page.getByLabel("Ben Guest invited to Evening Reception").check();
   await expect
     .poll(async () => {

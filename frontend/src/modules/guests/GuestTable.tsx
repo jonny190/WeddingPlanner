@@ -12,6 +12,8 @@ export interface GuestTableProps {
   selected: Set<string>;
   onSelect: (guestId: string, selected: boolean) => void;
   onSelectAll: (selected: boolean) => void;
+  /** Invite checkboxes the user just changed, keyed `${guestId}:${eventId}`, shown until saved. */
+  pendingInvites: Record<string, boolean>;
   onToggleInvite: (guest: Guest, event: WeddingEvent, invited: boolean) => void;
   onTogglePlusOne: (guest: Guest, event: WeddingEvent, invitation: EventInvitation) => void;
   onEdit: (guest: Guest) => void;
@@ -26,6 +28,7 @@ export function GuestTable({
   selected,
   onSelect,
   onSelectAll,
+  pendingInvites,
   onToggleInvite,
   onTogglePlusOne,
   onEdit,
@@ -110,13 +113,14 @@ export function GuestTable({
               </td>
               {events.map((e) => {
                 const inv = g.invitations.find((i) => i.event_id === e.id);
+                const pending = pendingInvites[`${g.id}:${e.id}`];
                 return (
                   <td key={e.id} className="col-event">
                     <div className="invite-cell">
                       <input
                         type="checkbox"
                         aria-label={`${g.full_name} invited to ${e.name}`}
-                        checked={Boolean(inv)}
+                        checked={pending ?? Boolean(inv)}
                         disabled={!canEdit}
                         onChange={(ev) => onToggleInvite(g, e, ev.target.checked)}
                       />

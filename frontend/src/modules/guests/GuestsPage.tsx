@@ -67,7 +67,12 @@ export default function GuestsPage() {
     setSelected(new Set());
   };
 
+  // Reflect a checkbox click straight away; the optimistic cache update lands a tick later.
+  const [pendingInvites, setPendingInvites] = useState<Record<string, boolean>>({});
+
   const onToggleInvite = async (guest: Guest, event: WeddingEvent, invited: boolean) => {
+    const key = `${guest.id}:${event.id}`;
+    setPendingInvites((p) => ({ ...p, [key]: invited }));
     try {
       if (invited) {
         await setInvitation.mutateAsync({ guestId: guest.id, eventId: event.id, plusOne: false });
@@ -89,6 +94,8 @@ export default function GuestsPage() {
       await removeInvitation.mutateAsync({ guestId: guest.id, eventId: event.id });
     } catch (err) {
       toast.error(err);
+    } finally {
+      setPendingInvites(({ [key]: _done, ...rest }) => rest);
     }
   };
 
@@ -276,6 +283,7 @@ export default function GuestsPage() {
               })
             }
             onSelectAll={(on) => setSelected(on ? new Set(visible.map((g) => g.id)) : new Set())}
+            pendingInvites={pendingInvites}
             onToggleInvite={(g, e, invited) => void onToggleInvite(g, e, invited)}
             onTogglePlusOne={(g, e, inv) => void onTogglePlusOne(g, e, inv)}
             onEdit={(g) => setEditing(g)}
