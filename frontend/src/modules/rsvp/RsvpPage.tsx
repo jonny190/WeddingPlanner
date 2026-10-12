@@ -98,13 +98,15 @@ function Invitation({ token, view, focusEvent }: { token: string; view: RsvpView
         </section>
       ) : (
         <EnvelopeReveal play={sealed} initials={sealInitials(view.couple_names)}>
-          <div className="rsvp-events">
-            {events.map((e) => (
-              <EventInvitation key={e.event_id} event={e} view={view} />
-            ))}
-          </div>
+          {/* One sheet of paper: the card, its details, and the reply questions beneath them. */}
+          <div className="rsvp-sheet">
+            <div className="rsvp-events">
+              {events.map((e) => (
+                <EventInvitation key={e.event_id} event={e} view={view} />
+              ))}
+            </div>
 
-          <section className="rsvp-panel" aria-labelledby="rsvp-reply-title">
+            <section className="rsvp-panel" aria-labelledby="rsvp-reply-title">
             {editing ? (
               <>
                 <h2 id="rsvp-reply-title">{view.has_responded ? "Change your reply" : "Will you join us?"}</h2>
@@ -134,7 +136,8 @@ function Invitation({ token, view, focusEvent }: { token: string; view: RsvpView
                 }}
               />
             )}
-          </section>
+            </section>
+          </div>
         </EnvelopeReveal>
       )}
     </article>
