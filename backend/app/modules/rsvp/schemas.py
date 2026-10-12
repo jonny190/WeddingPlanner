@@ -22,6 +22,15 @@ class Engagement(StrEnum):
 # --- Public (guest-facing) ----------------------------------------------------------------
 
 
+class RsvpEventCalendar(BaseModel):
+    """Ways to put this event in the guest's own calendar."""
+
+    # The .ics download for this event, on this deployment.
+    ics_url: str
+    google_url: str
+    outlook_url: str
+
+
 class RsvpEvent(BaseModel):
     event_id: uuid.UUID
     name: str
@@ -39,6 +48,8 @@ class RsvpEvent(BaseModel):
     plus_one_dietary: str | None
     # The designed invitation card, personalised for this guest.
     card: InvitationDesign
+    # None when the event has no date or time to build an entry from.
+    calendar: RsvpEventCalendar | None = None
 
 
 class RsvpView(BaseModel):

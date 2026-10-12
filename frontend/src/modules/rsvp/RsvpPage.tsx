@@ -174,8 +174,37 @@ function EventInvitation({ event, view, reveal }: { event: RsvpEvent; view: Rsvp
         )}
         {event.details && <p className="rsvp-extra">{event.details}</p>}
         {event.plus_one_allowed && <p className="rsvp-note">You're very welcome to bring a guest.</p>}
+        <CalendarLinks event={event} />
       </div>
     </section>
+  );
+}
+
+/** Ways to put the event in the guest's own calendar, with the reminders spelled out. */
+function CalendarLinks({ event }: { event: RsvpEvent }) {
+  const calendar = event.calendar;
+  if (!calendar) return null;
+  return (
+    <div className="rsvp-calendar">
+      <p className="rsvp-sub-q">Put it in your calendar</p>
+      <a className="rsvp-cal-btn" href={calendar.ics_url}>
+        Add to my calendar
+      </a>
+      <p className="rsvp-cal-other">
+        Or add it to{" "}
+        <a href={calendar.google_url} target="_blank" rel="noopener noreferrer">
+          Google Calendar
+        </a>{" "}
+        or{" "}
+        <a href={calendar.outlook_url} target="_blank" rel="noopener noreferrer">
+          Outlook
+        </a>
+      </p>
+      <p className="rsvp-cal-note">
+        The first button works on any phone or computer, and sets a reminder a week before, the day
+        before and two hours before — so the day will not creep up on you.
+      </p>
+    </div>
   );
 }
 

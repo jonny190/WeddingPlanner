@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import NamedTuple
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
@@ -22,6 +23,15 @@ from app.modules.invitations.service import (
     personalised_card,
     rsvp_url,
 )
+from app.modules.rsvp.calendar import (
+    CalendarEntry,
+    build_ics,
+    entry_for,
+    filename_for,
+    google_url,
+    ics_url,
+    outlook_url,
+)
 from app.modules.rsvp.schemas import (
     DietaryNote,
     Engagement,
@@ -29,6 +39,7 @@ from app.modules.rsvp.schemas import (
     ReplyRow,
     ReplyUpdate,
     RsvpEvent,
+    RsvpEventCalendar,
     RsvpSubmit,
     RsvpView,
     WeddingSummary,
@@ -119,10 +130,77 @@ def rsvp_view(db: Session, token: str, public_app_url: str) -> RsvpView:
                 plus_one_name=i.plus_one_name,
                 plus_one_dietary=i.plus_one_dietary,
                 card=cards[i.id],
+                calendar=_calendar_links(i, wedding, guest, public_app_url),
             )
             for i in invitations
         ],
         fonts=fonts_for(fonts),
+    )
+
+
+def _calendar_entry(
+    invitation: EventInvitation, wedding: Wedding, guest: Guest, public_app_url: str
+) -> CalendarEntry | None:
+    """The calendar entry for one of this guest's invitations, if it has a date to build from."""
+    return entry_for(invitation.event, wedding, detail_url=rsvp_url(public_app_url, guest))
+
+
+def _calendar_links(
+    invitation: EventInvitation, wedding: Wedding, guest: Guest, public_app_url: str
+) -> RsvpEventCalendar | None:
+    """How this guest can put the event into their own calendar."""
+    entry = _calendar_entry(invitation, wedding, guest, public_app_url)
+    if entry is None:
+        return None
+    return RsvpEventCalendar(
+        ics_url=ics_url(public_app_url, guest.rsvp_token, invitation.event_id),
+        google_url=google_url(entry),
+        outlook_url=outlook_url(entry),
+    )
+
+
+class CalendarDownload(NamedTuple):
+    """A calendar file ready to send: what to call it, and its contents."""
+
+    filename: str
+    content: str
+
+
+def calendar_file(
+    db: Session,
+    token: str,
+    public_app_url: str,
+    event_id: uuid.UUID | None = None,
+    *,
+    now: datetime | None = None,
+) -> CalendarDownload:
+    """One guest's events as a calendar file, with the reminders.
+
+    A single event can be asked for by id, which is what the button on that invitation does;
+    without one the file holds everything the guest is invited to and has not declined.
+    """
+    guest = _guest_for_token(db, token)
+    wedding = db.get(Wedding, guest.wedding_id)
+    invitations = _visible_invitations(guest)
+    event = None
+    if event_id is not None:
+        match = next((i for i in invitations if i.event_id == event_id), None)
+        if match is None:
+            raise NotFound("That event is not on your invitation")
+        invitations, event = [match], match.event
+    entries = [
+        entry
+        for entry in (
+            _calendar_entry(i, wedding, guest, public_app_url)
+            for i in invitations
+            if i.rsvp_status is not RsvpStatus.declined
+        )
+        if entry is not None
+    ]
+    if not entries:
+        raise NotFound("There is nothing to add to your calendar yet")
+    return CalendarDownload(
+        filename=filename_for(entries, event), content=build_ics(entries, stamp=now or utcnow())
     )
 
 

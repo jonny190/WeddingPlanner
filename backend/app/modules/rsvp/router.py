@@ -76,3 +76,17 @@ def view_invitation(token: str, db: DB, settings: AppSettings):
 @public_router.post("/{token}", response_model=RsvpView)
 def submit_rsvp(token: str, data: RsvpSubmit, db: DB, settings: AppSettings):
     return service.submit_rsvp(db, token, data, settings.public_app_url)
+
+
+@public_router.get("/{token}/calendar.ics", response_class=Response)
+def event_calendar(token: str, db: DB, settings: AppSettings, event: uuid.UUID | None = None):
+    """The guest's events as a calendar file: reminders a week, a day and two hours before."""
+    download = service.calendar_file(db, token, settings.public_app_url, event)
+    return Response(
+        content=download.content,
+        media_type="text/calendar; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{download.filename}"',
+            "Cache-Control": "no-store",
+        },
+    )

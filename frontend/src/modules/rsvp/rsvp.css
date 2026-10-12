@@ -525,6 +525,54 @@ textarea.rsvp-input {
   font-style: italic;
 }
 
+/* ---------- Calendar ---------- */
+.rsvp-calendar {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--c-line, rgba(0, 0, 0, 0.08));
+}
+
+.rsvp-calendar .rsvp-sub-q {
+  font-size: 0.98rem;
+}
+
+.rsvp-cal-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding: 0 24px;
+  border: 1px solid var(--c-accent);
+  border-radius: 999px;
+  color: var(--c-accent);
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.rsvp-cal-btn:hover,
+.rsvp-cal-btn:focus-visible {
+  background: var(--c-accent);
+  color: #fff;
+}
+
+.rsvp-cal-other {
+  margin: 10px 0 0;
+  font-size: 0.92rem;
+  color: var(--c-muted);
+}
+
+.rsvp-cal-other a {
+  color: var(--c-accent);
+}
+
+.rsvp-cal-note {
+  margin: 10px 0 0;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--c-muted);
+}
+
 @media (min-width: 600px) {
   .public-main {
     padding-top: 56px;
