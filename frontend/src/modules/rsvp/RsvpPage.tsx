@@ -5,6 +5,7 @@ import type { RsvpEvent, RsvpView } from "../../api/types";
 import { daysUntil, formatDate, formatEventWhen, formatLongDate, parseDate } from "../../lib/format";
 import { CardRenderer } from "../invitations/designer";
 import { useRsvpView } from "./api";
+import { LetterReveal, shouldReveal } from "./LetterReveal";
 import { PublicLayout, PublicMessage } from "./PublicLayout";
 import { RsvpForm } from "./RsvpForm";
 
@@ -70,6 +71,13 @@ function Invitation({ token, view, focusEvent }: { token: string; view: RsvpView
 
   const deadline = earliestDeadline(events);
 
+  // The first invitation the guest meets arrives as a folded letter, once per visit.
+  const firstEventId = events[0]?.event_id ?? "";
+  const reveal = useMemo(
+    () => (firstEventId ? shouldReveal(`${token}:${firstEventId}`) : false),
+    [token, firstEventId],
+  );
+
   return (
     <article className="rsvp">
       <header className="rsvp-hero">
@@ -92,7 +100,7 @@ function Invitation({ token, view, focusEvent }: { token: string; view: RsvpView
         <>
           <div className="rsvp-events">
             {events.map((e) => (
-              <EventInvitation key={e.event_id} event={e} view={view} />
+              <EventInvitation key={e.event_id} event={e} view={view} reveal={reveal && e.event_id === firstEventId} />
             ))}
           </div>
 
@@ -133,7 +141,7 @@ function Invitation({ token, view, focusEvent }: { token: string; view: RsvpView
   );
 }
 
-function EventInvitation({ event, view }: { event: RsvpEvent; view: RsvpView }) {
+function EventInvitation({ event, view, reveal }: { event: RsvpEvent; view: RsvpView; reveal: boolean }) {
   const mapsUrl = event.venue_address
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
         [event.venue_name, event.venue_address].filter(Boolean).join(", "),
@@ -142,7 +150,9 @@ function EventInvitation({ event, view }: { event: RsvpEvent; view: RsvpView }) 
   return (
     <section className="rsvp-event" aria-label={event.name}>
       <div className="rsvp-card-frame">
-        <CardRenderer design={event.card} fonts={view.fonts} assetUrl={assetUrl} />
+        <LetterReveal play={reveal}>
+          <CardRenderer design={event.card} fonts={view.fonts} assetUrl={assetUrl} />
+        </LetterReveal>
       </div>
       <div className="rsvp-details">
         <h2>{event.name}</h2>
