@@ -5,7 +5,7 @@ import type { RsvpEvent, RsvpView } from "../../api/types";
 import { daysUntil, formatDate, formatEventWhen, formatLongDate, parseDate } from "../../lib/format";
 import { CardRenderer } from "../invitations/designer";
 import { useRsvpView } from "./api";
-import { LetterReveal, shouldReveal } from "./LetterReveal";
+import { EnvelopeReveal, sealInitials, shouldReveal } from "./EnvelopeReveal";
 import { PublicLayout, PublicMessage } from "./PublicLayout";
 import { RsvpForm } from "./RsvpForm";
 
@@ -71,9 +71,9 @@ function Invitation({ token, view, focusEvent }: { token: string; view: RsvpView
 
   const deadline = earliestDeadline(events);
 
-  // The first invitation the guest meets arrives as a folded letter, once per visit.
+  // The invitations arrive as one sealed envelope, once per visit.
   const firstEventId = events[0]?.event_id ?? "";
-  const reveal = useMemo(
+  const sealed = useMemo(
     () => (firstEventId ? shouldReveal(`${token}:${firstEventId}`) : false),
     [token, firstEventId],
   );
@@ -98,11 +98,13 @@ function Invitation({ token, view, focusEvent }: { token: string; view: RsvpView
         </section>
       ) : (
         <>
-          <div className="rsvp-events">
-            {events.map((e) => (
-              <EventInvitation key={e.event_id} event={e} view={view} reveal={reveal && e.event_id === firstEventId} />
-            ))}
-          </div>
+          <EnvelopeReveal play={sealed} initials={sealInitials(view.couple_names)}>
+            <div className="rsvp-events">
+              {events.map((e) => (
+                <EventInvitation key={e.event_id} event={e} view={view} />
+              ))}
+            </div>
+          </EnvelopeReveal>
 
           <section className="rsvp-panel" aria-labelledby="rsvp-reply-title">
             {editing ? (
@@ -141,7 +143,7 @@ function Invitation({ token, view, focusEvent }: { token: string; view: RsvpView
   );
 }
 
-function EventInvitation({ event, view, reveal }: { event: RsvpEvent; view: RsvpView; reveal: boolean }) {
+function EventInvitation({ event, view }: { event: RsvpEvent; view: RsvpView }) {
   const mapsUrl = event.venue_address
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
         [event.venue_name, event.venue_address].filter(Boolean).join(", "),
@@ -150,9 +152,7 @@ function EventInvitation({ event, view, reveal }: { event: RsvpEvent; view: Rsvp
   return (
     <section className="rsvp-event" aria-label={event.name}>
       <div className="rsvp-card-frame">
-        <LetterReveal play={reveal}>
-          <CardRenderer design={event.card} fonts={view.fonts} assetUrl={assetUrl} />
-        </LetterReveal>
+        <CardRenderer design={event.card} fonts={view.fonts} assetUrl={assetUrl} />
       </div>
       <div className="rsvp-details">
         <h2>{event.name}</h2>

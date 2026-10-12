@@ -1,0 +1,293 @@
+/* ==========================================================================
+   A sealed envelope that opens to the invitation.
+
+   Taken from Jonny's demo (wax seal, swinging flap, letter rising out) and
+   redrawn against the app's own tokens, so a themed account carries it
+   through and the couple's initials sit in the wax.
+
+   Stages, driven by EnvelopeReveal.tsx:
+     .reveal-sealed   the envelope, closed
+     .reveal-opening  the seal gives, then the flap swings back
+     .reveal-open     the card in place, the envelope receding
+   ========================================================================== */
+
+.reveal {
+  display: block;
+}
+
+/* While the envelope is sealed the card is in the document but invisible: its fonts and images load
+   before they are wanted, and a screen reader meets only the envelope. */
+.reveal-card {
+  visibility: hidden;
+  height: 0;
+  overflow: hidden;
+}
+
+.reveal-open .reveal-card {
+  visibility: visible;
+  height: auto;
+  overflow: visible;
+  animation: card-settle 900ms var(--ease, cubic-bezier(0.2, 0.7, 0.2, 1)) 60ms both;
+}
+
+@keyframes card-settle {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.985);
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- The envelope ---------- */
+.reveal-envelope {
+  --env-w: min(100%, 420px);
+  --env-body: var(--c-border, #ece0cc);
+  --env-paper: var(--c-surface, #fdfaf3);
+  --env-back: var(--c-border-strong, #cdb894);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0 24px;
+}
+
+.envelope {
+  position: relative;
+  display: block;
+  width: var(--env-w);
+  /* The demo's proportions. An aspect ratio, not a height calc: a percentage inside a height
+     would resolve against the container's height and collapse the envelope to nothing. */
+  aspect-ratio: 100 / 62;
+  padding: 0;
+  border: 0;
+  background: none;
+  perspective: 1400px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.envelope:focus-visible {
+  outline: 2px solid var(--c-accent, #7a5c4f);
+  outline-offset: 10px;
+  border-radius: 8px;
+}
+
+.envelope:disabled {
+  cursor: default;
+}
+
+/* The dark interior */
+.envelope__back {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: 6px;
+  background: var(--env-back);
+  box-shadow:
+    0 24px 40px -12px rgba(45, 36, 32, 0.35),
+    0 6px 12px rgba(45, 36, 32, 0.12);
+}
+
+/* The card, waiting inside */
+.envelope__letter {
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  top: 7%;
+  height: 86%;
+  z-index: 2;
+  border-radius: 3px;
+  background: var(--env-paper);
+  box-shadow: 0 2px 6px rgba(45, 36, 32, 0.15);
+}
+
+/* Front pocket, with its two side folds */
+.envelope__pocket {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: 0 0 6px 6px;
+  background: var(--env-body);
+  clip-path: polygon(0 0, 50% 54%, 100% 0, 100% 100%, 0 100%);
+}
+
+.envelope__pocket::before,
+.envelope__pocket::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.envelope__pocket::before {
+  background: rgba(45, 36, 32, 0.05);
+  clip-path: polygon(0 0, 50% 54%, 0 100%);
+}
+
+.envelope__pocket::after {
+  background: rgba(45, 36, 32, 0.09);
+  clip-path: polygon(100% 0, 50% 54%, 100% 100%);
+}
+
+/* Top flap, on its way to swinging back */
+.envelope__flap {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 60%;
+  z-index: 4;
+  transform-origin: top center;
+  border-radius: 6px 6px 0 0;
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.4), rgba(45, 36, 32, 0.06)),
+    var(--env-body);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
+/* ---------- Wax seal ---------- */
+.seal {
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  z-index: 5;
+  translate: -50% -50%;
+  display: grid;
+  place-items: center;
+  width: 22%;
+  aspect-ratio: 1;
+  /* Slightly irregular blob, like poured wax */
+  border-radius: 47% 53% 51% 49% / 53% 47% 53% 47%;
+  background: radial-gradient(
+    circle at 34% 28%,
+    color-mix(in srgb, var(--c-accent, #8e1b1b) 60%, #fff) 0%,
+    var(--c-accent, #8e1b1b) 45%,
+    color-mix(in srgb, var(--c-accent, #8e1b1b) 55%, #000) 100%
+  );
+  box-shadow:
+    0 4px 8px rgba(45, 36, 32, 0.35),
+    inset 0 -4px 8px rgba(0, 0, 0, 0.4),
+    inset 0 3px 5px rgba(255, 255, 255, 0.18);
+  font-family: var(--font-display, Georgia, serif);
+  /* Viewport-relative with a floor and a ceiling: a percentage here would resolve against the
+     inherited font size, not the seal. */
+  font-size: clamp(1.05rem, 5.5vw, 1.5rem);
+  font-weight: 600;
+  line-height: 1;
+  color: color-mix(in srgb, var(--c-accent, #8e1b1b) 40%, #000);
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.28),
+    0 -1px 0 rgba(0, 0, 0, 0.45);
+  user-select: none;
+  transition: transform 200ms ease;
+}
+
+/* Pressed inner ring */
+.seal::before {
+  content: "";
+  position: absolute;
+  inset: 14%;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.28);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+/* A little wax spilled to one side */
+.seal::after {
+  content: "";
+  position: absolute;
+  width: 26%;
+  height: 22%;
+  right: -6%;
+  bottom: 8%;
+  z-index: -1;
+  border-radius: 50% 60% 45% 55%;
+  background: radial-gradient(
+    circle at 35% 30%,
+    color-mix(in srgb, var(--c-accent, #8e1b1b) 65%, #fff),
+    var(--c-accent, #8e1b1b) 60%,
+    color-mix(in srgb, var(--c-accent, #8e1b1b) 50%, #000)
+  );
+}
+
+.envelope:not(:disabled):hover .seal {
+  transform: scale(1.06);
+}
+
+/* ---------- Opening ---------- */
+.reveal-opening .seal,
+.reveal-open .seal {
+  transform: scale(1.35) rotate(-18deg);
+  opacity: 0;
+  transition:
+    transform 450ms ease-in,
+    opacity 450ms ease-in;
+}
+
+.reveal-opening .envelope__flap,
+.reveal-open .envelope__flap {
+  transform: rotateX(180deg);
+  z-index: 1;
+  transition:
+    transform 800ms cubic-bezier(0.45, 0, 0.25, 1) 450ms,
+    z-index 0s 850ms;
+}
+
+.reveal-opening .envelope__letter {
+  transform: translateY(-4%);
+  transition: transform 700ms cubic-bezier(0.4, 0, 0.2, 1) 950ms;
+}
+
+/* ---------- Once open, the envelope recedes ---------- */
+.reveal-open .reveal-envelope {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  pointer-events: none;
+  animation: envelope-away 520ms var(--ease, ease) both;
+}
+
+@keyframes envelope-away {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(16px) scale(0.985);
+  }
+}
+
+/* ---------- The prompt ---------- */
+.reveal-hint {
+  margin: 26px 0 0;
+  font-family: var(--font-display, Georgia, serif);
+  font-style: italic;
+  font-size: 1.05rem;
+  letter-spacing: 0.04em;
+  color: var(--c-accent, #7a5c4f);
+  transition: opacity 400ms ease;
+}
+
+.reveal-opening .reveal-hint,
+.reveal-open .reveal-hint {
+  opacity: 0;
+}
+
+/* ---------- Reduced motion: no envelope, no theatre ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .reveal-envelope {
+    display: none;
+  }
+
+  .reveal-card {
+    animation: none;
+  }
+}

@@ -46,10 +46,12 @@ test("send designed invitations, track who opened them, and collect RSVPs", asyn
   expect(joEmail.text).toContain("Dear Jo,");
   expect(trackedLink(joEmail)).not.toEqual(trackedLink(patEmail));
 
-  // Jo opens the link, sees the card, and accepts with a plus-one.
+  // Jo opens the link. The invitation arrives sealed, so she breaks the wax and sees her card.
   const jo = await browser.newPage();
   await jo.goto(trackedLink(joEmail));
   await expect(jo).toHaveURL(/\/rsvp\//);
+  await expect(jo.getByText("Tap the seal to open")).toBeVisible();
+  await jo.getByRole("button", { name: "Open the invitation" }).click();
   await expect(jo.getByText("For Jo Replier")).toBeVisible();
   await jo.getByText("Joyfully accept").first().click();
   await jo.getByText("Yes, I'll bring someone").click();
@@ -61,6 +63,7 @@ test("send designed invitations, track who opened them, and collect RSVPs", asyn
   // Pat opens the link but never replies.
   const pat = await browser.newPage();
   await pat.goto(trackedLink(patEmail));
+  await pat.getByRole("button", { name: "Open the invitation" }).click();
   await expect(pat.getByText("For Pat Opener")).toBeVisible();
   await pat.close();
 
