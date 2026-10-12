@@ -423,6 +423,12 @@ export interface LinkOpenResult {
 
 export type Engagement = "not_sent" | "sent" | "opened" | "responded";
 
+export interface RsvpEventCalendar {
+  ics_url: string;
+  google_url: string;
+  outlook_url: string;
+}
+
 export interface RsvpEvent {
   event_id: string;
   name: string;
@@ -439,6 +445,8 @@ export interface RsvpEvent {
   plus_one_name: string | null;
   plus_one_dietary: string | null;
   card: InvitationDesign;
+  // Null when the event has no date or time to build a calendar entry from.
+  calendar: RsvpEventCalendar | null;
 }
 
 export interface RsvpView {
