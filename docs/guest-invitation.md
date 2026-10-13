@@ -13,9 +13,14 @@ printed invitation, the couple's sign-off in a hand-written script with their na
 beneath, a P.S. with calendar links, and a reply slip along the bottom with tick boxes and
 lines to write on.
 
-The paper is the first card's background colour, aged towards parchment, with grain, mottling,
-darkened edges and the two creases of a letter that came folded in three (all drawn by the
-sheet's `::after`). The card's thin frame runs around the whole sheet, and the card art sits
+The paper is the first card's background colour, aged towards parchment. It carries the
+creases and wrinkles of a sheet that was crumpled and smoothed out again (an SVG `feTurbulence`
+relief lit with `feDiffuseLighting`, blended over the paper colour with `background-blend-mode`,
+on both the letter and the envelope), rough deckled edges (an SVG mask whose outline is pushed
+about by noise), and grain, mottling, a few stains, darkened edges and the two creases of a
+letter that came folded in three (all drawn by the sheet's `::after`). Because a mask would cut
+off a shadow drawn on the sheet, its shadow is a `drop-shadow` filter on the wrapper
+(`.reveal-sheet`), which follows the rough edge. The card's thin frame runs around the whole sheet, and the card art sits
 straight on the paper without its own background or frame. The ink colours and the
 typefaces (Cinzel for the crest and headings, EB Garamond for the body, Pinyon Script for
 the hand-written parts) are variables on the sheet. The colours come in from the card design
