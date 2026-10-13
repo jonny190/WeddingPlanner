@@ -34,6 +34,13 @@ test("send designed invitations, track who opened them, and collect RSVPs", asyn
   await expect(page.getByRole("tab", { name: "Card" })).toBeVisible();
   await expect(page.getByText("Sam & Alex").first()).toBeVisible();
 
+  // The envelope is set up in the builder too: its wording reaches the guest's page.
+  await page.getByRole("tab", { name: "Envelope" }).click();
+  await page.getByRole("textbox", { name: "Under the envelope" }).fill("Tap to break the wax");
+  await page.getByRole("textbox", { name: "Stamp" }).fill("2027");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByText("Draft saved.")).toBeVisible();
+
   await page.getByRole("tab", { name: "Send" }).click();
   await page.getByRole("button", { name: "Check who will receive it" }).click();
   await page.getByRole("button", { name: "Send to 2 guests" }).click();
@@ -50,7 +57,7 @@ test("send designed invitations, track who opened them, and collect RSVPs", asyn
   const jo = await browser.newPage();
   await jo.goto(trackedLink(joEmail));
   await expect(jo).toHaveURL(/\/rsvp\//);
-  await expect(jo.getByText("Break the seal to open")).toBeVisible();
+  await expect(jo.getByText("Tap to break the wax")).toBeVisible();
   await jo.getByRole("button", { name: "Open the invitation" }).click();
   await expect(jo.getByText("For Jo Replier")).toBeVisible();
   await jo.getByText("Joyfully accept").first().click();

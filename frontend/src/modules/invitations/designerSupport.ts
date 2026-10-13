@@ -128,5 +128,14 @@ export function fallbackDesign(): InvitationDesign {
       font_family: "Cormorant Garamond",
       button_text: "View your invitation",
     },
+    envelope: {
+      enabled: true,
+      paper_color: null,
+      seal_color: null,
+      ink_color: "#1f5436",
+      initials: "",
+      stamp_text: "",
+      hint: "Break the seal to open",
+    },
   };
 }

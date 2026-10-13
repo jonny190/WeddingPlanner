@@ -28,10 +28,15 @@
   --font-hand: "Pinyon Script", "Great Vibes", "Snell Roundhand", cursive;
   --font-crest: "Cinzel", "Cormorant Garamond", Georgia, serif;
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
-  position: relative;
   width: min(100%, 500px);
   margin: 0 auto;
   container-type: inline-size;
+}
+
+/* Everything is positioned within the stage, whose sizes are in container units: they resolve
+   against .reveal above it, so the stage must not be the container itself. */
+.reveal-stage {
+  position: relative;
   perspective: 1400px;
 }
 
@@ -60,9 +65,9 @@
   --letter-top: 7cqw; /* where the letter sits inside the pocket */
 }
 
-.reveal-addressed,
-.reveal-sealed,
-.reveal-opening {
+.reveal-addressed .reveal-stage,
+.reveal-sealed .reveal-stage,
+.reveal-opening .reveal-stage {
   height: calc(var(--room) + var(--env-h) + 64px);
 }
 
@@ -714,9 +719,9 @@
     display: none;
   }
 
-  .reveal-addressed,
-  .reveal-sealed,
-  .reveal-opening {
+  .reveal-addressed .reveal-stage,
+  .reveal-sealed .reveal-stage,
+  .reveal-opening .reveal-stage {
     height: auto;
   }
 

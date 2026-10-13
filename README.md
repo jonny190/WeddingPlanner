@@ -67,11 +67,16 @@ automatically before the new API starts.
 - **Invitation designer**: design the card on a canvas. Text and image layers can be placed
   anywhere, with curated Google Fonts, colours, sizes, letter spacing, rotation, background
   images and frames. Text can include placeholders like `{{first_name}}` and `{{event_when}}`.
-  Each draft also styles its email: header image, colours, font and button text.
+  Each draft also styles its email (header image, colours, font and button text) and the
+  envelope guests open on their page (paper, wax and ink colours, the initials on the wax, the
+  stamp and the prompt), with a preview that plays in the builder.
 - **Drafts, preview and send**: preview as any guest, send yourself a test, then send to an
   audience: not yet sent, no reply, opened but no reply, never opened, everyone, or chosen
   guests. A dry run lists recipients and anyone without an email. Emails go through a
   background worker with retries, and posted invitations can be marked as sent.
+- **Menus**: each event can have its own menu of courses and dishes. Guests choose for
+  themselves and for their plus-one when they accept, the couple sees a count per dish and
+  who is having what, can record choices taken by phone, and exports a list for the caterer.
 - **RSVP and replies**: each guest gets a personal page: a parchment envelope addressed to
   them in green ink, which turns over, and opens at the wax seal to one letter: the couple's
   note, their personalised card for every event they've been sent, a hand-written sign-off,
@@ -117,8 +122,9 @@ layout: `models.py` (tables), `schemas.py` (API contracts), `service.py` (busine
 | `guests` | Guests, per-event invitations and plus-ones, CSV import/export | weddings |
 | `media` | Image uploads (sniffed by content, never SVG) and public serving | weddings |
 | `seating` | Tables, seating rules, assignments, the auto-arrange solver (`solver.py`) | guests |
+| `menus` | Courses and dishes per event, and what each guest and plus-one chose | guests |
 | `invitations` | Card design format (`design.py`), drafts, rendering, sending, delivery worker, link tracking | guests, media, notifications |
-| `rsvp` | Public RSVP pages, replies dashboards, engagement, manual replies | invitations |
+| `rsvp` | Public RSVP pages (with the menu and dish choices), replies dashboards, engagement, manual replies | menus, invitations |
 
 `app/modules/__init__.py` lists the installed modules in dependency order. The app factory
 mounts each module's `router` under `/api/v1` and its `public_router` (no auth) under
@@ -212,8 +218,8 @@ emails point at it.
 
 | Suite | What it covers | Run |
 |---|---|---|
-| Backend (`backend/tests`, 79 tests) | API, tenant isolation, invitations to join an account, password resets, abuse limits, seating solver, invitations, tracking, RSVP, media, config | `cd backend && uv run pytest` (or `make test`) |
-| End-to-end (`e2e/`, Playwright) | Real browser + API + email worker: sign-up and account isolation, joining by invitation, password change and reset, guests and seating rules, designing and sending invitations, tracked links, RSVP, replies | `cd e2e && npm ci && npx playwright install chromium && npm test` |
+| Backend (`backend/tests`, 85 tests) | API, tenant isolation, invitations to join an account, password resets, abuse limits, seating solver, menus and dish choices, invitations, tracking, RSVP, media, config | `cd backend && uv run pytest` (or `make test`) |
+| End-to-end (`e2e/`, Playwright) | Real browser + API + email worker: sign-up and account isolation, joining by invitation, password change and reset, guests and seating rules, menus and dish choices, designing and sending invitations, tracked links, RSVP, replies | `cd e2e && npm ci && npx playwright install chromium && npm test` |
 | Frontend types | Strict TypeScript across the SPA | `cd frontend && npm run build` |
 
 ```bash

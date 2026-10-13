@@ -12,18 +12,18 @@ import { PageLoader } from "../../components/Spinner";
 import { TabPanel, Tabs } from "../../components/Tabs";
 import { useToast } from "../../components/Toasts";
 import { useGuardedAction, useUnsavedChanges } from "../../layout/NavigationGuard";
-import { formatRelative, pluralize } from "../../lib/format";
+import { formatLongDate, formatRelative, parseDate, pluralize } from "../../lib/format";
 import { deepEqual } from "../../lib/utils";
 import { useGuests } from "../guests/api";
 import { useDeleteDraft, useUpdateDraft } from "./api";
-import { CardDesigner } from "./designer";
+import { CardDesigner, EnvelopeStyleEditor } from "./designer";
 import { fallbackDesign, useDesignerResources, useSampleValues } from "./designerSupport";
 import { EmailTab } from "./EmailTab";
 import { PreviewTab } from "./PreviewTab";
 import { isAudience, SendTab } from "./SendTab";
 
-type EditorTab = "card" | "email" | "preview" | "send";
-const TAB_IDS: EditorTab[] = ["card", "email", "preview", "send"];
+type EditorTab = "card" | "email" | "envelope" | "preview" | "send";
+const TAB_IDS: EditorTab[] = ["card", "email", "envelope", "preview", "send"];
 
 interface Editable {
   name: string;
@@ -147,7 +147,7 @@ export function DraftEditor({ wedding, event, draft, drafts, canEdit, onClose, o
   };
 
   const setDesign = (design: InvitationDesign) => setCurrent((c) => ({ ...c, design }));
-  const needsResources = tab === "card" || tab === "email";
+  const needsResources = tab === "card" || tab === "email" || tab === "envelope";
 
   return (
     <div className="draft-editor stack">
@@ -235,6 +235,7 @@ export function DraftEditor({ wedding, event, draft, drafts, canEdit, onClose, o
         tabs={[
           { id: "card", label: "Card" },
           { id: "email", label: "Email" },
+          { id: "envelope", label: "Envelope" },
           { id: "preview", label: "Preview" },
           { id: "send", label: "Send" },
         ]}
@@ -274,6 +275,24 @@ export function DraftEditor({ wedding, event, draft, drafts, canEdit, onClose, o
             assetUrl={resources.assetUrl}
             readOnly={!canEdit}
           />
+        ) : tab === "envelope" ? (
+          <section className="card card-pad stack-sm">
+            <h3>Envelope</h3>
+            <p className="small muted" style={{ margin: 0 }}>
+              How the invitation arrives on each guest's page: the envelope they are handed, the wax they break and the
+              ink it is addressed in.
+            </p>
+            <EnvelopeStyleEditor
+              value={current.design.envelope}
+              onChange={(envelope) => setCurrent((c) => ({ ...c, design: { ...c.design, envelope } }))}
+              accentColor={current.design.email.accent_color}
+              paperColor={current.design.background.color}
+              coupleNames={wedding.couple_names}
+              weddingDate={wedding.wedding_date ? formatLongDate(parseDate(wedding.wedding_date)) : null}
+              fonts={resources.fonts}
+              readOnly={!canEdit}
+            />
+          </section>
         ) : tab === "preview" ? (
           <PreviewTab
             weddingId={wedding.id}

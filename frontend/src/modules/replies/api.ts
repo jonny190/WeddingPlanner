@@ -32,7 +32,7 @@ export function useRecordReply(weddingId: string, eventId: string) {
     mutationFn: ({ guestId, data }: { guestId: string; data: ReplyUpdate }) =>
       api.put<ReplyRow>(`/weddings/${weddingId}/events/${eventId}/replies/${guestId}`, data),
     onSuccess: () =>
-      invalidateWedding(qc, weddingId, "replies", "replies-summary", "summary", "guests", "seating"),
+      invalidateWedding(qc, weddingId, "replies", "replies-summary", "summary", "guests", "seating", "menu-choices"),
   });
 }
 

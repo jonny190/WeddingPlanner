@@ -5,7 +5,7 @@ import type { RsvpEvent, RsvpView } from "../../api/types";
 import { daysUntil, formatDate, formatLongDate, formatTime, parseDate, parseWallClock } from "../../lib/format";
 import { CardRenderer } from "../invitations/designer";
 import { useRsvpView } from "./api";
-import { EnvelopeReveal, sealInitials, shouldReveal } from "./EnvelopeReveal";
+import { EnvelopeReveal, sealInitials, shouldReveal } from "../../components/envelope/EnvelopeReveal";
 import { PublicLayout, PublicMessage } from "./PublicLayout";
 import { RsvpForm } from "./RsvpForm";
 
@@ -102,12 +102,14 @@ function Invitation({ token, view, focusEvent }: { token: string; view: RsvpView
   // The letter is written on the first card's paper, inside its frame, in its colours. The envelope
   // is dressed to match: the card's accent for the wax, a deeper shade of its paper for the envelope.
   const firstCard = events[0].card;
+  const envelope = firstCard.envelope;
   const letterStyle = {
     "--letter-paper": firstCard.background.color,
     "--letter-frame": firstCard.background.border_color ?? "transparent",
     "--c-accent": firstCard.email.accent_color,
+    "--ink-green": envelope.ink_color,
   } as CSSProperties;
-  const initials = sealInitials(view.couple_names);
+  const initials = envelope.initials.trim() || sealInitials(view.couple_names);
   const withCalendar = events.filter((e) => e.calendar);
   const weddingDate = view.wedding_date ? formatLongDate(parseDate(view.wedding_date)) : null;
   const addressLines = [view.full_name, `The wedding of ${view.couple_names}`, ...(weddingDate ? [weddingDate] : [])];
@@ -115,11 +117,14 @@ function Invitation({ token, view, focusEvent }: { token: string; view: RsvpView
   return (
     <article className="rsvp">
       <EnvelopeReveal
-        play={sealed}
+        play={sealed && envelope.enabled}
         initials={initials}
+        stampText={envelope.stamp_text.trim() || undefined}
+        hint={envelope.hint}
         addressLines={addressLines}
-        sealColor={firstCard.email.accent_color}
-        paperColor={firstCard.background.color}
+        sealColor={envelope.seal_color ?? firstCard.email.accent_color}
+        paperColor={envelope.paper_color ?? firstCard.background.color}
+        inkColor={envelope.ink_color}
       >
         {/* One letter: the heading and crest, the couple's note, the printed invitation, their sign-off, and a reply slip. */}
         <div className="rsvp-sheet letter" style={letterStyle}>
@@ -262,6 +267,12 @@ function EventPassage({ event, view, first }: { event: RsvpEvent; view: RsvpView
         <CardRenderer design={event.card} fonts={view.fonts} assetUrl={assetUrl} />
       </div>
       {event.details && <p className="letter-details">{event.details}</p>}
+      {event.menu.length > 0 && (
+        <p>
+          There is a choice of dishes for the {event.name}: you will find the menu on the reply slip below, so do
+          tell us what you{event.plus_one_allowed ? " and anyone you bring" : ""} would like.
+        </p>
+      )}
     </>
   );
 }
@@ -319,6 +330,12 @@ function Confirmation({
                   ? "Not attending"
                   : "Not answered yet"}
             </span>
+            {e.rsvp_status === "attending" && e.menu.length > 0 && (
+              <span className="rsvp-summary-dishes">
+                {dishes(e, e.menu_choices.guest, view.first_name)}
+                {e.plus_one_attending && dishes(e, e.menu_choices.plus_one, e.plus_one_name || "Your guest")}
+              </span>
+            )}
           </li>
         ))}
       </ul>
@@ -331,5 +348,18 @@ function Confirmation({
         {pending.length > 0 ? "Reply now" : "Change my reply"}
       </button>
     </div>
+  );
+}
+
+/** "Jo: Soup, Beef, Tart" for the confirmation. */
+function dishes(event: RsvpEvent, picks: Record<string, string>, who: string) {
+  const names = event.menu
+    .map((c) => c.options.find((o) => o.id === picks[c.id])?.name)
+    .filter((n): n is string => Boolean(n));
+  if (names.length === 0) return null;
+  return (
+    <span className="rsvp-summary-dish">
+      <strong>{who}:</strong> {names.join(", ")}
+    </span>
   );
 }

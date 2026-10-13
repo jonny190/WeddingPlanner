@@ -12,10 +12,11 @@ def installed_modules() -> list[Module]:
     from app.modules.guests.module import module as guests
     from app.modules.invitations.module import module as invitations
     from app.modules.media.module import module as media
+    from app.modules.menus.module import module as menus
     from app.modules.notifications.module import module as notifications
     from app.modules.rsvp.module import module as rsvp
     from app.modules.seating.module import module as seating
     from app.modules.tenancy.module import module as tenancy
     from app.modules.weddings.module import module as weddings
 
-    return [notifications, tenancy, weddings, guests, media, seating, invitations, rsvp]
+    return [notifications, tenancy, weddings, guests, media, seating, menus, invitations, rsvp]

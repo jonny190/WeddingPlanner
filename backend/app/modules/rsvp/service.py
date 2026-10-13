@@ -23,6 +23,8 @@ from app.modules.invitations.service import (
     personalised_card,
     rsvp_url,
 )
+from app.modules.menus import service as menus
+from app.modules.menus.schemas import MenuChoiceSets, MenuCourseRead
 from app.modules.rsvp.calendar import (
     CalendarEntry,
     build_ics,
@@ -104,6 +106,8 @@ def rsvp_view(db: Session, token: str, public_app_url: str) -> RsvpView:
         for i in invitations
     }
     fonts = set().union(*(d.font_families() for d in designs.values())) if designs else set()
+    courses = menus.courses_for_events(db, {i.event_id for i in invitations})
+    choices = menus.choices_for_invitations(db, [i.id for i in invitations])
     return RsvpView(
         first_name=guest.first_name,
         full_name=guest.full_name,
@@ -131,6 +135,8 @@ def rsvp_view(db: Session, token: str, public_app_url: str) -> RsvpView:
                 plus_one_dietary=i.plus_one_dietary,
                 card=cards[i.id],
                 calendar=_calendar_links(i, wedding, guest, public_app_url),
+                menu=[MenuCourseRead.model_validate(c) for c in courses.get(i.event_id, [])],
+                menu_choices=choices.get(i.id, MenuChoiceSets()),
             )
             for i in invitations
         ],
@@ -207,6 +213,7 @@ def calendar_file(
 def submit_rsvp(db: Session, token: str, data: RsvpSubmit, public_app_url: str) -> RsvpView:
     guest = _guest_for_token(db, token)
     invitations = {i.event_id: i for i in _visible_invitations(guest)}
+    courses = menus.courses_for_events(db, invitations.keys())
     now = utcnow()
     for response in data.responses:
         invitation = invitations.get(response.event_id)
@@ -225,6 +232,14 @@ def submit_rsvp(db: Session, token: str, data: RsvpSubmit, public_app_url: str) 
         invitation.guest_message = data.message
         invitation.responded_at = now
         invitation.response_channel = ResponseChannel.online
+        # What they are having, now that we know whether they (and a plus-one) are coming.
+        menus.set_choices(
+            db,
+            invitation,
+            courses.get(invitation.event_id, []),
+            response.menu_choices or MenuChoiceSets(),
+            require_complete=True,
+        )
     if data.dietary_requirements is not None:
         guest.dietary_requirements = data.dietary_requirements or None
     db.commit()
@@ -360,6 +375,8 @@ def record_reply(
     if data.plus_one_attending and not invitation.plus_one_allowed:
         raise BadRequest("This guest's invitation does not include a plus-one")
     invitation.rsvp_status = data.rsvp_status
+    if data.rsvp_status != RsvpStatus.attending:
+        menus.clear_choices(db, invitation)
     if data.rsvp_status == RsvpStatus.pending:
         invitation.clear_plus_one()
         invitation.responded_at = None
