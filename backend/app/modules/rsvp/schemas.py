@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from app.modules.guests.models import AgeGroup, ResponseChannel, RsvpStatus
 from app.modules.invitations.design import FontOption, InvitationDesign
+from app.modules.menus.schemas import MenuChoiceSets, MenuCourseRead
 from app.modules.weddings.models import EventKind
 
 
@@ -50,6 +51,9 @@ class RsvpEvent(BaseModel):
     card: InvitationDesign
     # None when the event has no date or time to build an entry from.
     calendar: RsvpEventCalendar | None = None
+    # The meal, course by course, when the event has one; and what this guest has picked.
+    menu: list[MenuCourseRead] = []
+    menu_choices: MenuChoiceSets = MenuChoiceSets()
 
 
 class RsvpView(BaseModel):
@@ -72,6 +76,9 @@ class RsvpEventResponse(BaseModel):
     plus_one_attending: bool | None = None
     plus_one_name: str | None = Field(default=None, max_length=200)
     plus_one_dietary: str | None = Field(default=None, max_length=2000)
+    # Dishes for each course, for the guest and for their plus-one. Required when attending an
+    # event that has a menu.
+    menu_choices: MenuChoiceSets | None = None
 
 
 class RsvpSubmit(BaseModel):

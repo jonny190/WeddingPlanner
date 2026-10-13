@@ -459,6 +459,83 @@ export interface RsvpEventCalendar {
   outlook_url: string;
 }
 
+// --- Menus --------------------------------------------------------------------------------
+
+export interface MenuOption {
+  id: string;
+  name: string;
+  description: string | null;
+  sort_order: number;
+}
+
+export interface MenuCourse {
+  id: string;
+  event_id: string;
+  name: string;
+  description: string | null;
+  sort_order: number;
+  options: MenuOption[];
+}
+
+export interface Menu {
+  event_id: string;
+  courses: MenuCourse[];
+}
+
+export interface MenuOptionIn {
+  id?: string;
+  name: string;
+  description?: string | null;
+}
+
+export interface MenuCourseIn {
+  id?: string;
+  name: string;
+  description?: string | null;
+  options: MenuOptionIn[];
+}
+
+export interface MenuUpdate {
+  courses: MenuCourseIn[];
+}
+
+/** course id -> option id */
+export type ChoiceMap = Record<string, string>;
+
+export interface MenuChoiceSets {
+  guest: ChoiceMap;
+  plus_one: ChoiceMap;
+}
+
+export interface GuestChoiceRow {
+  guest_id: string;
+  invitation_id: string;
+  full_name: string;
+  rsvp_status: RsvpStatus;
+  plus_one_attending: boolean | null;
+  plus_one_name: string | null;
+  dietary_requirements: string | null;
+  plus_one_dietary: string | null;
+  choices: MenuChoiceSets;
+  complete: boolean;
+}
+
+export interface OptionCount {
+  course_id: string;
+  course_name: string;
+  option_id: string;
+  option_name: string;
+  count: number;
+}
+
+export interface MenuChoicesReport {
+  event_id: string;
+  courses: MenuCourse[];
+  counts: OptionCount[];
+  people_still_to_choose: number;
+  rows: GuestChoiceRow[];
+}
+
 export interface RsvpEvent {
   event_id: string;
   name: string;
@@ -477,6 +554,9 @@ export interface RsvpEvent {
   card: InvitationDesign;
   // Null when the event has no date or time to build a calendar entry from.
   calendar: RsvpEventCalendar | null;
+  /** The meal, course by course; empty when the event has no menu. */
+  menu: MenuCourse[];
+  menu_choices: MenuChoiceSets;
 }
 
 export interface RsvpView {
@@ -498,6 +578,8 @@ export interface RsvpEventResponse {
   plus_one_attending: boolean | null;
   plus_one_name: string | null;
   plus_one_dietary: string | null;
+  /** Required when attending an event that has a menu. */
+  menu_choices?: MenuChoiceSets | null;
 }
 
 export interface RsvpSubmit {

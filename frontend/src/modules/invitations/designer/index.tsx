@@ -2,7 +2,7 @@
 // only from here. The prop types below are fixed; implementations live in sibling
 // files and are re-exported.
 import type { CSSProperties } from "react";
-import type { EmailStyle, FontOption, InvitationDesign, MediaAsset, Placeholder } from "./types";
+import type { EmailStyle, EnvelopeStyle, FontOption, InvitationDesign, MediaAsset, Placeholder } from "./types";
 import "./designer.css";
 
 export * from "./types";
@@ -54,6 +54,22 @@ export interface EmailStyleEditorProps {
 
 /** Controls for the email's look: header image, colours, font, button text. */
 export { EmailStyleEditor } from "./EmailStyleEditor";
+
+export interface EnvelopeStyleEditorProps {
+  value: EnvelopeStyle;
+  onChange: (value: EnvelopeStyle) => void;
+  /** The card's accent and paper, which the envelope follows unless told otherwise. */
+  accentColor: string;
+  paperColor: string;
+  /** For the preview and the default initials. */
+  coupleNames: string;
+  weddingDate?: string | null;
+  fonts: FontOption[];
+  readOnly?: boolean;
+}
+
+/** Controls for the envelope guests open first: paper, wax, ink, initials, stamp and the hint, with a preview. */
+export { EnvelopeStyleEditor } from "./EnvelopeStyleEditor";
 
 /** Make the card typefaces (bundled with the app) available while a card is on screen. */
 export { useWebFonts } from "./fonts";

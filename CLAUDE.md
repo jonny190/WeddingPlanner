@@ -43,7 +43,9 @@ make up && python3 deploy/smoke_test.py # the Docker stack, through nginx
 | Email sending | `backend/app/modules/notifications/email.py`; guest invitations queue in `invitation_deliveries` and `backend/app/worker.py` sends them |
 | Card format and rendering | `backend/app/modules/invitations/design.py`, `rendering.py`, `frontend/.../designer/CardSurface.tsx` |
 | Seating solver | `backend/app/modules/seating/solver.py` (pure, unit tested) |
-| Guest-facing pages, the envelope reveal | `frontend/src/modules/rsvp/` (see `docs/guest-invitation.md`) |
+| Menus and dish choices | `backend/app/modules/menus/`, `frontend/src/modules/menus/`; the guest picks in `frontend/src/modules/rsvp/RsvpForm.tsx` |
+| Guest-facing pages | `frontend/src/modules/rsvp/` (see `docs/guest-invitation.md`) |
+| The envelope reveal and its settings | `frontend/src/components/envelope/`, `EnvelopeStyle` in `backend/app/modules/invitations/design.py`, Envelope tab in `frontend/src/modules/invitations/DraftEditor.tsx` |
 
 ## History
 

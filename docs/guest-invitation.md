@@ -11,7 +11,8 @@ of a formal letter: a crest with the couple's initials, their names set in capit
 date, then "Dear Jo," and paragraphs that say when and where, the designed card as the
 printed invitation, the couple's sign-off in a hand-written script with their names printed
 beneath, a P.S. with calendar links, and a reply slip along the bottom with tick boxes and
-lines to write on.
+lines to write on. When an event has a menu, the letter says so and the slip asks the guest
+to pick a dish for every course, and again for anyone they bring (see `guides/menus.md`).
 
 The paper is the first card's background colour, aged towards parchment. It carries the
 creases and wrinkles of a sheet that was crumpled and smoothed out again (an SVG `feTurbulence`
@@ -31,7 +32,10 @@ with no envelope.
 
 ## The envelope
 
-`EnvelopeReveal.tsx` wraps the sheet. The first time a guest opens the page in a browser
+`EnvelopeReveal.tsx` (in `frontend/src/components/envelope/`, shared with the invitation
+builder's preview) wraps the sheet. Its colours, the initials on the wax, the stamp, the prompt
+and whether it plays at all come from the design's `envelope` settings, set on the Envelope tab
+of the invitation builder; colours left unset follow the card. The first time a guest opens the page in a browser
 session, the sheet arrives inside a sealed envelope of heavy parchment. The letter inside the
 envelope is the real content, scaled down, not a stand-in, so the words that rise out of the
 pocket are the words the guest then reads. While it is inside, the sheet is `inert` and

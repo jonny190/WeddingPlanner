@@ -2,7 +2,7 @@
 // the card's current shape when applied.
 import { pickFont } from "./fonts";
 import { fitLayersToAspect } from "./geometry";
-import { DEFAULT_EMAIL, fitToFont } from "./model";
+import { DEFAULT_EMAIL, DEFAULT_ENVELOPE, fitToFont } from "./model";
 import type { CardBackground, FontCategory, FontOption, InvitationDesign, Layer, TextLayer } from "./types";
 
 export const TEMPLATE_ASPECT = 1.4;
@@ -267,5 +267,11 @@ export function templatePreview(
   fonts: readonly FontOption[],
   aspectRatio: number,
 ): InvitationDesign {
-  return { version: 1, aspect_ratio: aspectRatio, ...buildTemplate(template, fonts, aspectRatio), email: DEFAULT_EMAIL };
+  return {
+    version: 1,
+    aspect_ratio: aspectRatio,
+    ...buildTemplate(template, fonts, aspectRatio),
+    email: DEFAULT_EMAIL,
+    envelope: DEFAULT_ENVELOPE,
+  };
 }

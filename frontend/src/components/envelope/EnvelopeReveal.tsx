@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import "./envelope.css";
 
 type Stage = "addressed" | "sealed" | "opening" | "open" | "done";
@@ -16,7 +24,10 @@ const SETTLE_MS = 820; // the letter growing into place while the envelope falls
 const opened = new Set<string>();
 
 function reducedMotion(): boolean {
-  return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
 }
 
 /** True once per browser session, so a guest who has already opened the invitation is not asked to again. */
@@ -42,7 +53,9 @@ export function sealInitials(coupleNames: string): string {
     .split(/\s*(?:[&+]|\band\b)\s*/i)
     .map((part) => part.trim())
     .filter(Boolean);
-  const letters = parts.map((part) => Array.from(part)[0] ?? "").filter(Boolean);
+  const letters = parts
+    .map((part) => Array.from(part)[0] ?? "")
+    .filter(Boolean);
   if (letters.length >= 2) return `${letters[0]}&${letters[1]}`.toUpperCase();
   return letters.join("").toUpperCase();
 }
@@ -59,6 +72,10 @@ interface Props {
   sealColor?: string;
   /** A tint for the envelope paper, normally the card's background colour. */
   paperColor?: string;
+  /** The hand-written address on the front. */
+  inkColor?: string;
+  /** On the stamp in the corner; the initials when not given. */
+  stampText?: string;
 }
 
 /**
@@ -75,6 +92,8 @@ export function EnvelopeReveal({
   addressLines = [],
   sealColor,
   paperColor,
+  inkColor,
+  stampText,
 }: Props) {
   const [stage, setStage] = useState<Stage>(play ? "addressed" : "done");
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -88,7 +107,8 @@ export function EnvelopeReveal({
     }
     if (stage === "opening") {
       const timer = window.setTimeout(() => {
-        lastInEnvelope.current = sheetRef.current?.getBoundingClientRect() ?? null;
+        lastInEnvelope.current =
+          sheetRef.current?.getBoundingClientRect() ?? null;
         setStage("open");
       }, OPEN_AT);
       return () => window.clearTimeout(timer);
@@ -113,74 +133,109 @@ export function EnvelopeReveal({
     const scale = first.width / last.width;
     const settle = sheet.animate(
       [
-        { transformOrigin: "top left", transform: `translate(${dx}px, ${dy}px) scale(${scale})` },
+        {
+          transformOrigin: "top left",
+          transform: `translate(${dx}px, ${dy}px) scale(${scale})`,
+        },
         { transformOrigin: "top left", transform: "none" },
       ],
-      { duration: SETTLE_MS, easing: "cubic-bezier(0.2, 0.7, 0.2, 1)", fill: "both" },
+      {
+        duration: SETTLE_MS,
+        easing: "cubic-bezier(0.2, 0.7, 0.2, 1)",
+        fill: "both",
+      },
     );
     // Once settled the letter is simply in the page; nothing should keep holding a transform on it.
     settle.onfinish = () => settle.cancel();
   }, [stage]);
 
-  const turnOver = useCallback(() => setStage((current) => (current === "addressed" ? "sealed" : current)), []);
-  const open = useCallback(() => setStage((current) => (current === "sealed" ? "opening" : current)), []);
+  const turnOver = useCallback(
+    () => setStage((current) => (current === "addressed" ? "sealed" : current)),
+    [],
+  );
+  const open = useCallback(
+    () => setStage((current) => (current === "sealed" ? "opening" : current)),
+    [],
+  );
 
   const style = {
     ...(sealColor ? { "--seal-color": sealColor } : {}),
     ...(paperColor ? { "--paper-tint": paperColor } : {}),
+    ...(inkColor ? { "--ink-green": inkColor } : {}),
   } as CSSProperties;
   const sealed = stage === "sealed";
-  const inEnvelope = stage === "addressed" || stage === "sealed" || stage === "opening";
+  const inEnvelope =
+    stage === "addressed" || stage === "sealed" || stage === "opening";
 
   return (
     <div className={`reveal reveal-${stage}`} style={style}>
-      {/* The seal side of the envelope and the letter inside it, turned over together. */}
-      <div className="env-scene">
-        {stage !== "done" && <div className="env-back" aria-hidden="true" />}
-        <div className="reveal-window">
-          {/* While it is in the envelope the letter is there to be seen through the flap, but not to be read or tabbed to. */}
-          <div ref={sheetRef} className="reveal-sheet" inert={inEnvelope || undefined} aria-hidden={inEnvelope || undefined}>
-            {children}
+      {/* The stage is sized from the envelope's width (container units resolve against .reveal, its parent). */}
+      <div className="reveal-stage">
+        {/* The seal side of the envelope and the letter inside it, turned over together. */}
+        <div className="env-scene">
+          {stage !== "done" && <div className="env-back" aria-hidden="true" />}
+          <div className="reveal-window">
+            {/* While it is in the envelope the letter is there to be seen through the flap, but not to be read or tabbed to. */}
+            <div
+              ref={sheetRef}
+              className="reveal-sheet"
+              inert={inEnvelope || undefined}
+              aria-hidden={inEnvelope || undefined}
+            >
+              {children}
+            </div>
           </div>
+          {stage !== "done" && (
+            <div className="env-front" aria-hidden={!sealed || undefined}>
+              <span className="env-pocket" aria-hidden="true" />
+              <span className="env-flap" aria-hidden="true" />
+              <button
+                type="button"
+                className="seal"
+                onClick={open}
+                disabled={!sealed}
+                aria-label="Open the invitation"
+              >
+                <span
+                  className="seal__half seal__half--left"
+                  aria-hidden="true"
+                >
+                  {initials}
+                </span>
+                <span
+                  className="seal__half seal__half--right"
+                  aria-hidden="true"
+                >
+                  {initials}
+                </span>
+                <span className="seal__drip" aria-hidden="true" />
+              </button>
+              <p className="reveal-hint">{hint}</p>
+            </div>
+          )}
         </div>
-        {stage !== "done" && (
-          <div className="env-front" aria-hidden={!sealed || undefined}>
-            <span className="env-pocket" aria-hidden="true" />
-            <span className="env-flap" aria-hidden="true" />
-            <button type="button" className="seal" onClick={open} disabled={!sealed} aria-label="Open the invitation">
-              <span className="seal__half seal__half--left" aria-hidden="true">
-                {initials}
-              </span>
-              <span className="seal__half seal__half--right" aria-hidden="true">
-                {initials}
-              </span>
-              <span className="seal__drip" aria-hidden="true" />
-            </button>
-            <p className="reveal-hint">{hint}</p>
-          </div>
+        {(stage === "addressed" || stage === "sealed") && (
+          <button
+            type="button"
+            className="env-address"
+            onClick={turnOver}
+            disabled={stage !== "addressed"}
+            aria-label="Turn the envelope over"
+          >
+            <span className="env-stamp" aria-hidden="true">
+              {stampText || initials}
+            </span>
+            <span className="env-postmark" aria-hidden="true" />
+            <span className="env-address-lines">
+              {addressLines.map((line, i) => (
+                <span key={i} className={i === 0 ? "env-to" : "env-line"}>
+                  {line}
+                </span>
+              ))}
+            </span>
+          </button>
         )}
       </div>
-      {(stage === "addressed" || stage === "sealed") && (
-        <button
-          type="button"
-          className="env-address"
-          onClick={turnOver}
-          disabled={stage !== "addressed"}
-          aria-label="Turn the envelope over"
-        >
-          <span className="env-stamp" aria-hidden="true">
-            {initials}
-          </span>
-          <span className="env-postmark" aria-hidden="true" />
-          <span className="env-address-lines">
-            {addressLines.map((line, i) => (
-              <span key={i} className={i === 0 ? "env-to" : "env-line"}>
-                {line}
-              </span>
-            ))}
-          </span>
-        </button>
-      )}
     </div>
   );
 }

@@ -137,6 +137,23 @@ class EmailStyle(BaseModel):
         return _check_font(value)
 
 
+class EnvelopeStyle(BaseModel):
+    """How the invitation arrives on the guest's page: a sealed envelope they open first.
+
+    Colours left empty follow the card: the wax takes the email accent and the paper the
+    card's background. Initials left empty are the couple's.
+    """
+
+    enabled: bool = True
+    paper_color: HexColor | None = None
+    seal_color: HexColor | None = None
+    # The hand-written address on the front, and the letter's headings and signature.
+    ink_color: HexColor = "#1f5436"
+    initials: str = Field(default="", max_length=5)
+    stamp_text: str = Field(default="", max_length=6)
+    hint: str = Field(default="Break the seal to open", min_length=1, max_length=60)
+
+
 class InvitationDesign(BaseModel):
     version: Literal[1] = 1
     # Card height divided by width: 1.4 is a 5x7 portrait card, 1 is square.
@@ -144,6 +161,7 @@ class InvitationDesign(BaseModel):
     background: CardBackground = CardBackground()
     layers: list[Layer] = Field(default_factory=list, max_length=60)
     email: EmailStyle = EmailStyle()
+    envelope: EnvelopeStyle = EnvelopeStyle()
 
     @model_validator(mode="after")
     def _unique_layer_ids(self) -> "InvitationDesign":

@@ -93,6 +93,23 @@ export interface EmailStyle {
   button_text: string;
 }
 
+export interface EnvelopeStyle {
+  /** Guests open a sealed envelope before the letter. */
+  enabled: boolean;
+  /** Null follows the card's background. */
+  paper_color: string | null;
+  /** Null follows the email accent. */
+  seal_color: string | null;
+  /** The hand-written address, and the letter's headings and signature. */
+  ink_color: string;
+  /** On the wax and the stamp; empty means the couple's initials. 0..5 chars */
+  initials: string;
+  /** Empty means the initials. 0..6 chars */
+  stamp_text: string;
+  /** 1..60 chars */
+  hint: string;
+}
+
 export interface InvitationDesign {
   version: 1;
   /** height / width, 0.5..2 (1.4 = 5x7 portrait). */
@@ -101,4 +118,5 @@ export interface InvitationDesign {
   /** Painted in order: later layers sit on top. Max 60. */
   layers: Layer[];
   email: EmailStyle;
+  envelope: EnvelopeStyle;
 }

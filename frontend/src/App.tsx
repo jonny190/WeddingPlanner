@@ -19,6 +19,7 @@ const OverviewPage = lazy(() => import("./modules/weddings/OverviewPage"));
 const SettingsPage = lazy(() => import("./modules/weddings/SettingsPage"));
 const GuestsPage = lazy(() => import("./modules/guests/GuestsPage"));
 const SeatingPage = lazy(() => import("./modules/seating/SeatingPage"));
+const MenusPage = lazy(() => import("./modules/menus/MenusPage"));
 const InvitationsPage = lazy(() => import("./modules/invitations/InvitationsPage"));
 const RepliesPage = lazy(() => import("./modules/replies/RepliesPage"));
 const LinkOpenPage = lazy(() => import("./modules/rsvp/LinkOpenPage"));
@@ -103,6 +104,7 @@ export default function App() {
             <Route index element={<OverviewPage />} />
             <Route path="guests" element={<GuestsPage />} />
             <Route path="seating" element={<SeatingPage />} />
+            <Route path="menus" element={<MenusPage />} />
             <Route path="invitations" element={<InvitationsPage />} />
             <Route path="replies" element={<RepliesPage />} />
             <Route path="settings" element={<SettingsPage />} />

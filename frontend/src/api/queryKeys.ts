@@ -12,7 +12,9 @@ export type WeddingSection =
   | "deliveries"
   | "replies"
   | "replies-summary"
-  | "media";
+  | "media"
+  | "menu"
+  | "menu-choices";
 
 export const qk = {
   weddings: ["weddings"] as const,
@@ -29,6 +31,8 @@ export const qk = {
     ["w", wid, "replies", eid, filters] as const,
   repliesSummary: (wid: string, eid: string) => ["w", wid, "replies-summary", eid] as const,
   media: (wid: string) => ["w", wid, "media"] as const,
+  menu: (wid: string, eid: string) => ["w", wid, "menu", eid] as const,
+  menuChoices: (wid: string, eid: string) => ["w", wid, "menu-choices", eid] as const,
   fonts: ["invitation-fonts"] as const,
   placeholders: ["invitation-placeholders"] as const,
   members: ["tenant", "members"] as const,
@@ -50,4 +54,5 @@ export const GUEST_DEPENDENT: WeddingSection[] = [
   "constraints",
   "replies",
   "replies-summary",
+  "menu-choices",
 ];

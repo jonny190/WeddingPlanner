@@ -4,6 +4,7 @@ import { findFont, nearestWeight, pickFont } from "./fonts";
 import type {
   CardBackground,
   EmailStyle,
+  EnvelopeStyle,
   FontOption,
   ImageLayer,
   InvitationDesign,
@@ -15,6 +16,9 @@ import { DESIGN_WIDTH_PX } from "./types";
 export const MAX_LAYERS = 60;
 export const MAX_TEXT = 2000;
 export const MAX_BUTTON_TEXT = 60;
+export const MAX_HINT = 60;
+export const MAX_INITIALS = 5;
+export const MAX_STAMP = 6;
 export const MAX_ID = 40;
 /** Smallest width the designer produces (the API only needs > 0). */
 export const MIN_WIDTH = 1;
@@ -42,6 +46,16 @@ export const DEFAULT_EMAIL: EmailStyle = {
   accent_color: "#7a5c4f",
   font_family: "Cormorant Garamond",
   button_text: "View your invitation",
+};
+
+export const DEFAULT_ENVELOPE: EnvelopeStyle = {
+  enabled: true,
+  paper_color: null,
+  seal_color: null,
+  ink_color: "#1f5436",
+  initials: "",
+  stamp_text: "",
+  hint: "Break the seal to open",
 };
 
 export interface ShapePreset {
@@ -227,6 +241,21 @@ export function normalizeEmail(email: EmailStyle, fonts: readonly FontOption[]):
   return keepIfSame(e, next);
 }
 
+export function normalizeEnvelope(envelope: EnvelopeStyle | undefined): EnvelopeStyle {
+  const e = envelope ?? DEFAULT_ENVELOPE;
+  const hint = typeof e.hint === "string" ? truncateChars(e.hint, MAX_HINT) : "";
+  const next: EnvelopeStyle = {
+    enabled: e.enabled !== false,
+    paper_color: isHex(e.paper_color) ? e.paper_color : null,
+    seal_color: isHex(e.seal_color) ? e.seal_color : null,
+    ink_color: isHex(e.ink_color) ? e.ink_color : DEFAULT_ENVELOPE.ink_color,
+    initials: typeof e.initials === "string" ? truncateChars(e.initials, MAX_INITIALS) : "",
+    stamp_text: typeof e.stamp_text === "string" ? truncateChars(e.stamp_text, MAX_STAMP) : "",
+    hint: hint.trim() ? hint : DEFAULT_ENVELOPE.hint,
+  };
+  return envelope ? keepIfSame(envelope, next) : next;
+}
+
 /**
  * Return a design the API accepts: every number clamped to its range, colours valid,
  * fonts from the catalog, at most 60 layers with unique 1-40 character ids.
@@ -257,6 +286,7 @@ export function normalizeDesign(design: InvitationDesign, fonts: readonly FontOp
     background: normalizeBackground(design.background),
     layers: sameLayers ? design.layers : layers,
     email: normalizeEmail(design.email, fonts),
+    envelope: normalizeEnvelope(design.envelope),
   };
   return keepIfSame(design, next);
 }

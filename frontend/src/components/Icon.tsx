@@ -3,6 +3,13 @@ import type { SVGProps } from "react";
 
 const PATHS = {
   menu: <path d="M3 6h18M3 12h18M3 18h18" />,
+  dish: (
+    <>
+      <path d="M3 17h18" />
+      <path d="M5 17a7 7 0 0 1 14 0" />
+      <path d="M12 10V8M10 8h4" />
+    </>
+  ),
   close: <path d="M18 6 6 18M6 6l12 12" />,
   plus: <path d="M12 5v14M5 12h14" />,
   search: (
@@ -13,6 +20,7 @@ const PATHS = {
   ),
   check: <path d="M20 6 9 17l-5-5" />,
   chevronDown: <path d="m6 9 6 6 6-6" />,
+  chevronUp: <path d="m6 15 6-6 6 6" />,
   chevronLeft: <path d="m15 18-6-6 6-6" />,
   chevronRight: <path d="m9 18 6-6-6-6" />,
   edit: (

@@ -268,3 +268,41 @@ def test_slow_batches_are_not_requeued_as_stale(
     assert outbox.deliver() == 3  # the stale rows were requeued and claimed
     assert sorted(seen) == ["jo@example.com", "pat@example.com", "sam@example.com"]
     assert outbox.deliver() == 0  # and nothing is sent twice
+
+
+def test_envelope_settings_are_part_of_the_design(api, client, wedding, day, drafts, draft, outbox):
+    # Defaults: the envelope follows the card.
+    assert draft["design"]["envelope"] == {
+        "enabled": True,
+        "paper_color": None,
+        "seal_color": None,
+        "ink_color": "#1f5436",
+        "initials": "",
+        "stamp_text": "",
+        "hint": "Break the seal to open",
+    }
+    design = {
+        **draft["design"],
+        "envelope": {
+            "enabled": True,
+            "paper_color": "#e8d8b8",
+            "seal_color": "#7a1f2b",
+            "ink_color": "#223355",
+            "initials": "S+A",
+            "stamp_text": "2027",
+            "hint": "Tap to break the wax",
+        },
+    }
+    saved = api.patch(f"{drafts}/{draft['id']}", json={"design": design}).json()
+    assert saved["design"]["envelope"]["seal_color"] == "#7a1f2b"
+    assert saved["design"]["envelope"]["hint"] == "Tap to break the wax"
+
+    bad = {**design, "envelope": {**design["envelope"], "seal_color": "red"}}
+    api.patch(f"{drafts}/{draft['id']}", expected=422, json={"design": bad})
+
+    # The guest's page carries the settings with the card.
+    guest = guest_for(api, wedding, day, "Jo")
+    api.post(f"{drafts}/{draft['id']}/send", json={"audience": "all"})
+    outbox.deliver()
+    view = client.get(f"/api/v1/public/rsvp/{guest['rsvp_token']}").json()
+    assert view["events"][0]["card"]["envelope"]["initials"] == "S+A"
