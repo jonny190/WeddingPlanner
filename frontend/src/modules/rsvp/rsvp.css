@@ -597,11 +597,16 @@ textarea.rsvp-input {
   max-width: 500px;
   margin: 0 auto;
   padding: calc(var(--letter-margin) * 0.9) 0 calc(var(--letter-margin) * 0.8);
-  border-radius: 3px 5px 2px 6px;
-  background: var(--parchment-paper);
-  box-shadow:
-    0 1px 2px rgba(45, 36, 32, 0.12),
-    0 22px 60px rgba(45, 36, 32, 0.2);
+  /* The paper colour, with the creases and wrinkles of a sheet that has been crumpled and
+     smoothed out again lit across it. */
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='640'%3E%3Cfilter id='c' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.011 0.009' numOctaves='4' seed='11' stitchTiles='stitch' result='n'/%3E%3CfeDiffuseLighting in='n' lighting-color='%23fff' surfaceScale='6' diffuseConstant='1.1' result='l'%3E%3CfeDistantLight azimuth='40' elevation='58'/%3E%3C/feDiffuseLighting%3E%3CfeComponentTransfer in='l'%3E%3CfeFuncR type='linear' slope='1.1' intercept='-0.52'/%3E%3CfeFuncG type='linear' slope='1.1' intercept='-0.52'/%3E%3CfeFuncB type='linear' slope='1.1' intercept='-0.52'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='640' height='640' filter='url%28%23c%29'/%3E%3C/svg%3E") 0 0 / 640px 640px repeat,
+    var(--parchment-paper);
+  background-blend-mode: overlay, normal;
+  /* Rough, deckled edges. The shadow lives on the wrapper (envelope.css), since a mask would
+     cut off a shadow drawn here. */
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 500 1400' preserveAspectRatio='none'%3E%3Cfilter id='d' x='-5%25' y='-2%25' width='110%25' height='104%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.06 0.025' numOctaves='3' seed='5'/%3E%3CfeDisplacementMap in='SourceGraphic' scale='10' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3Crect x='6' y='6' width='488' height='1388' fill='%23fff' filter='url%28%23d%29'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 500 1400' preserveAspectRatio='none'%3E%3Cfilter id='d' x='-5%25' y='-2%25' width='110%25' height='104%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.06 0.025' numOctaves='3' seed='5'/%3E%3CfeDisplacementMap in='SourceGraphic' scale='10' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3Crect x='6' y='6' width='488' height='1388' fill='%23fff' filter='url%28%23d%29'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
   font-family: var(--font-letter);
   color: var(--ink);
 }
@@ -634,7 +639,10 @@ textarea.rsvp-input {
     radial-gradient(ellipse at 15% 8%, rgba(120, 85, 35, 0.12), transparent 40%) 0 0 / 100% 100% no-repeat,
     radial-gradient(ellipse at 88% 30%, rgba(120, 85, 35, 0.1), transparent 38%) 0 0 / 100% 100% no-repeat,
     radial-gradient(ellipse at 20% 72%, rgba(120, 85, 35, 0.1), transparent 40%) 0 0 / 100% 100% no-repeat,
-    radial-gradient(ellipse at 50% 50%, transparent 60%, rgba(110, 75, 30, 0.24) 100%) 0 0 / 100% 100% no-repeat,
+    radial-gradient(circle at 78% 12%, rgba(125, 85, 35, 0.16) 0, rgba(125, 85, 35, 0.07) 9px, transparent 26px) 0 0 / 100% 100% no-repeat,
+    radial-gradient(circle at 9% 46%, rgba(125, 85, 35, 0.14) 0, rgba(125, 85, 35, 0.05) 14px, transparent 34px) 0 0 / 100% 100% no-repeat,
+    radial-gradient(circle at 91% 83%, rgba(125, 85, 35, 0.12) 0, rgba(125, 85, 35, 0.05) 12px, transparent 30px) 0 0 / 100% 100% no-repeat,
+    radial-gradient(ellipse at 50% 50%, transparent 58%, rgba(110, 75, 30, 0.3) 100%) 0 0 / 100% 100% no-repeat,
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.27 0 0 0 0 0.2 0 0 0 0 0.13 0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url%28%23g%29'/%3E%3C/svg%3E") 0 0 / 200px 200px repeat;
 }
 
