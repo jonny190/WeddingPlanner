@@ -50,7 +50,7 @@ test("send designed invitations, track who opened them, and collect RSVPs", asyn
   const jo = await browser.newPage();
   await jo.goto(trackedLink(joEmail));
   await expect(jo).toHaveURL(/\/rsvp\//);
-  await expect(jo.getByText("Tap the seal to open")).toBeVisible();
+  await expect(jo.getByText("Break the seal to open")).toBeVisible();
   await jo.getByRole("button", { name: "Open the invitation" }).click();
   await expect(jo.getByText("For Jo Replier")).toBeVisible();
   await jo.getByText("Joyfully accept").first().click();

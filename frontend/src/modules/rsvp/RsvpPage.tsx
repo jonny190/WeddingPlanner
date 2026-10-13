@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { assetUrl, isApiError } from "../../api/client";
 import type { RsvpEvent, RsvpView } from "../../api/types";
-import { daysUntil, formatDate, formatEventWhen, formatLongDate, parseDate } from "../../lib/format";
+import { daysUntil, formatDate, formatLongDate, formatTime, parseDate, parseWallClock } from "../../lib/format";
 import { CardRenderer } from "../invitations/designer";
 import { useRsvpView } from "./api";
 import { EnvelopeReveal, sealInitials, shouldReveal } from "./EnvelopeReveal";
@@ -78,17 +78,16 @@ function Invitation({ token, view, focusEvent }: { token: string; view: RsvpView
     [token, firstEventId],
   );
 
-  return (
-    <article className="rsvp">
-      <header className="rsvp-hero">
-        <p className="rsvp-eyebrow">The wedding of</p>
-        <h1 className="rsvp-couple">{view.couple_names}</h1>
-        {view.wedding_date && <p className="rsvp-date">{formatLongDate(parseDate(view.wedding_date))}</p>}
-        <div className="rsvp-flourish" aria-hidden="true" />
-        <p className="rsvp-greeting">Dear {view.first_name},</p>
-      </header>
-
-      {events.length === 0 ? (
+  if (events.length === 0) {
+    return (
+      <article className="rsvp">
+        <header className="rsvp-hero">
+          <p className="rsvp-eyebrow">The wedding of</p>
+          <h1 className="rsvp-couple">{view.couple_names}</h1>
+          {view.wedding_date && <p className="rsvp-date">{formatLongDate(parseDate(view.wedding_date))}</p>}
+          <div className="rsvp-flourish" aria-hidden="true" />
+          <p className="rsvp-greeting">Dear {view.first_name},</p>
+        </header>
         <section className="rsvp-panel rsvp-center">
           <h2>Nothing to reply to yet</h2>
           <p>
@@ -96,21 +95,79 @@ function Invitation({ token, view, focusEvent }: { token: string; view: RsvpView
             to let them know if you can come.
           </p>
         </section>
-      ) : (
-        <EnvelopeReveal play={sealed} initials={sealInitials(view.couple_names)}>
-          {/* One sheet of paper: the card, its details, and the reply questions beneath them. */}
-          <div className="rsvp-sheet">
-            <div className="rsvp-events">
-              {events.map((e) => (
-                <EventInvitation key={e.event_id} event={e} view={view} />
-              ))}
-            </div>
+      </article>
+    );
+  }
 
-            <section className="rsvp-panel" aria-labelledby="rsvp-reply-title">
+  // The letter is written on the first card's paper, inside its frame, in its colours. The envelope
+  // is dressed to match: the card's accent for the wax, a deeper shade of its paper for the envelope.
+  const firstCard = events[0].card;
+  const letterStyle = {
+    "--letter-paper": firstCard.background.color,
+    "--letter-frame": firstCard.background.border_color ?? "transparent",
+    "--c-accent": firstCard.email.accent_color,
+  } as CSSProperties;
+  const initials = sealInitials(view.couple_names);
+  const withCalendar = events.filter((e) => e.calendar);
+  const weddingDate = view.wedding_date ? formatLongDate(parseDate(view.wedding_date)) : null;
+  const addressLines = [view.full_name, `The wedding of ${view.couple_names}`, ...(weddingDate ? [weddingDate] : [])];
+
+  return (
+    <article className="rsvp">
+      <EnvelopeReveal
+        play={sealed}
+        initials={initials}
+        addressLines={addressLines}
+        sealColor={firstCard.email.accent_color}
+        paperColor={firstCard.background.color}
+      >
+        {/* One letter: the heading and crest, the couple's note, the printed invitation, their sign-off, and a reply slip. */}
+        <div className="rsvp-sheet letter" style={letterStyle}>
+          <header className="letter-head">
+            <Crest initials={initials} />
+            <p className="letter-eyebrow">The wedding of</p>
+            <h1 className="letter-title">{view.couple_names}</h1>
+            {weddingDate && <p className="letter-subline">{weddingDate}</p>}
+          </header>
+          <div className="letter-body">
+            <p className="letter-greeting">Dear {view.first_name},</p>
+            {events.map((e, i) => (
+              <EventPassage key={e.event_id} event={e} view={view} first={i === 0} />
+            ))}
+            {deadline && <ReplyBy date={deadline} />}
+            <p className="letter-close">With love,</p>
+            <p className="letter-signature">{view.couple_names}</p>
+            <p className="letter-signed">{view.couple_names}</p>
+            {withCalendar.length > 0 && (
+              <div className="letter-ps">
+                <p>
+                  P.S. So the day does not creep up on you, add it to your calendar. The first link suits any phone
+                  or computer and sets a reminder a week, a day and two hours before.
+                </p>
+                <ul>
+                  {withCalendar.map((e) => (
+                    <li key={e.event_id}>
+                      {withCalendar.length > 1 && <span className="letter-ps-event">{e.name}: </span>}
+                      <a href={e.calendar!.ics_url}>Add to my calendar</a>
+                      <span aria-hidden="true"> · </span>
+                      <a href={e.calendar!.google_url} target="_blank" rel="noopener noreferrer">
+                        Google Calendar
+                      </a>
+                      <span aria-hidden="true"> · </span>
+                      <a href={e.calendar!.outlook_url} target="_blank" rel="noopener noreferrer">
+                        Outlook
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          <section className="rsvp-panel" aria-labelledby="rsvp-reply-title">
             {editing ? (
               <>
                 <h2 id="rsvp-reply-title">{view.has_responded ? "Change your reply" : "Will you join us?"}</h2>
-                {deadline && <ReplyBy date={deadline} />}
                 <RsvpForm
                   token={token}
                   view={view}
@@ -136,76 +193,76 @@ function Invitation({ token, view, focusEvent }: { token: string; view: RsvpView
                 }}
               />
             )}
-            </section>
-          </div>
-        </EnvelopeReveal>
-      )}
+          </section>
+        </div>
+      </EnvelopeReveal>
     </article>
   );
 }
 
-function EventInvitation({ event, view }: { event: RsvpEvent; view: RsvpView }) {
+/** The couple's crest: their initials within a double ring, as a school or a house would have it. */
+function Crest({ initials }: { initials: string }) {
+  return (
+    <svg className="letter-crest" viewBox="0 0 120 120" aria-hidden="true">
+      <circle cx="60" cy="60" r="56" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="60" cy="60" r="49" fill="none" stroke="currentColor" strokeWidth="0.8" />
+      <circle cx="60" cy="60" r="36" fill="none" stroke="currentColor" strokeWidth="0.8" />
+      <path d="M60 8 l3 6 -3 6 -3 -6z M60 112 l3 -6 -3 -6 -3 6z M8 60 l6 3 6 -3 -6 -3z M112 60 l-6 3 -6 -3 6 -3z" fill="currentColor" />
+      <text x="60" y="60" textAnchor="middle" dominantBaseline="central" fontSize="28" fontWeight="700" letterSpacing="2" fill="currentColor">
+        {initials}
+      </text>
+    </svg>
+  );
+}
+
+/** One event, written the way the couple would put it in a letter, with its printed card beneath. */
+function EventPassage({ event, view, first }: { event: RsvpEvent; view: RsvpView; first: boolean }) {
+  const starts = parseWallClock(event.starts_at);
+  const ends = parseWallClock(event.ends_at);
+  const where = [event.venue_name, event.venue_address?.replace(/\s*\n+\s*/g, ", ")].filter(Boolean).join(", ");
   const mapsUrl = event.venue_address
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
         [event.venue_name, event.venue_address].filter(Boolean).join(", "),
       )}`
     : null;
+  const opening = first
+    ? `We would be delighted if you would join us for the ${event.name}`
+    : `We would also love you to be with us for the ${event.name}`;
   return (
-    <section className="rsvp-event" aria-label={event.name}>
-      <div className="rsvp-card-frame">
-        <CardRenderer design={event.card} fonts={view.fonts} assetUrl={assetUrl} />
-      </div>
-      <div className="rsvp-details">
-        <h2>{event.name}</h2>
-        {event.starts_at && <p className="rsvp-when">{formatEventWhen(event.starts_at, event.ends_at)}</p>}
-        {(event.venue_name || event.venue_address) && (
-          <p className="rsvp-venue">
-            {event.venue_name && <strong>{event.venue_name}</strong>}
-            {event.venue_name && event.venue_address && <br />}
-            {event.venue_address && <span className="rsvp-address">{event.venue_address}</span>}
+    <>
+      <p>
+        {opening}
+        {starts && (
+          <>
+            {" on "}
+            <strong>{formatLongDate(starts)}</strong>
+            {" at "}
+            {formatTime(starts)}
+            {ends && ` until ${formatTime(ends)}`}
+          </>
+        )}
+        {where && (
+          <>
+            {", at "}
+            {where}
             {mapsUrl && (
               <>
-                <br />
+                {" ("}
                 <a href={mapsUrl} target="_blank" rel="noopener noreferrer">
-                  View on a map
+                  map
                 </a>
+                {")"}
               </>
             )}
-          </p>
+          </>
         )}
-        {event.details && <p className="rsvp-extra">{event.details}</p>}
-        {event.plus_one_allowed && <p className="rsvp-note">You're very welcome to bring a guest.</p>}
-        <CalendarLinks event={event} />
+        .{event.plus_one_allowed && " You are very welcome to bring a guest."}
+      </p>
+      <div className="letter-card">
+        <CardRenderer design={event.card} fonts={view.fonts} assetUrl={assetUrl} />
       </div>
-    </section>
-  );
-}
-
-/** Ways to put the event in the guest's own calendar, with the reminders spelled out. */
-function CalendarLinks({ event }: { event: RsvpEvent }) {
-  const calendar = event.calendar;
-  if (!calendar) return null;
-  return (
-    <div className="rsvp-calendar">
-      <p className="rsvp-sub-q">Put it in your calendar</p>
-      <a className="rsvp-cal-btn" href={calendar.ics_url}>
-        Add to my calendar
-      </a>
-      <p className="rsvp-cal-other">
-        Or add it to{" "}
-        <a href={calendar.google_url} target="_blank" rel="noopener noreferrer">
-          Google Calendar
-        </a>{" "}
-        or{" "}
-        <a href={calendar.outlook_url} target="_blank" rel="noopener noreferrer">
-          Outlook
-        </a>
-      </p>
-      <p className="rsvp-cal-note">
-        The first button works on any phone or computer, and sets a reminder a week before, the day
-        before and two hours before — so the day will not creep up on you.
-      </p>
-    </div>
+      {event.details && <p className="letter-details">{event.details}</p>}
+    </>
   );
 }
 
@@ -216,7 +273,7 @@ function ReplyBy({ date }: { date: string }) {
     <p className="rsvp-reply-by">
       {days !== null && days < 0
         ? `The reply-by date (${formatDate(d)}) has passed, but please still let the couple know.`
-        : `Kindly reply by ${formatLongDate(d)}.`}
+        : `We await your reply by no later than ${formatLongDate(d)}.`}
     </p>
   );
 }
