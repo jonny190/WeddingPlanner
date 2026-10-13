@@ -7,7 +7,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
     <div className="public-page">
       <main className="public-main">{children}</main>
       <footer className="public-footer">
-        Invitations by <span className="public-brand">Wedding Planner</span> · Coria
+        Invitations by <span className="public-brand">Wedding Planner</span>
       </footer>
     </div>
   );

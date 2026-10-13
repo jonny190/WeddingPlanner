@@ -12,6 +12,7 @@ from app.core.config import Settings
 from app.core.db import bind_tenant, get_db
 from app.core.errors import BadRequest, Forbidden, Unauthorized
 from app.core.security import decode_access_token
+from app.modules.notifications.email import EmailBackend
 from app.modules.tenancy.context import TenantContext
 from app.modules.tenancy.models import Membership, Role, User
 
@@ -27,13 +28,21 @@ def get_app_settings(request: Request) -> Settings:
 AppSettings = Annotated[Settings, Depends(get_app_settings)]
 
 
-def get_current_user(
+def get_email_backend(request: Request) -> EmailBackend:
+    return request.app.state.email_backend
+
+
+Mailer = Annotated[EmailBackend, Depends(get_email_backend)]
+
+
+def get_optional_user(
     db: DB,
     settings: AppSettings,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
-) -> User:
+) -> User | None:
+    """The signed-in user if a bearer token was sent, else None. A bad token is an error."""
     if credentials is None:
-        raise Unauthorized()
+        return None
     user_id = decode_access_token(credentials.credentials, settings)
     user = db.get(User, user_id) if user_id else None
     if user is None or not user.is_active:
@@ -41,6 +50,13 @@ def get_current_user(
     return user
 
 
+def get_current_user(user: Annotated[User | None, Depends(get_optional_user)]) -> User:
+    if user is None:
+        raise Unauthorized()
+    return user
+
+
+OptionalUser = Annotated[User | None, Depends(get_optional_user)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 

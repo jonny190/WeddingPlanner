@@ -63,6 +63,9 @@ export default function LoginPage() {
         <Button type="submit" variant="primary" size="lg" block loading={busy}>
           Sign in
         </Button>
+        <p className="small auth-aside-link">
+          <Link to="/forgot-password">Forgotten your password?</Link>
+        </p>
       </form>
     </AuthLayout>
   );

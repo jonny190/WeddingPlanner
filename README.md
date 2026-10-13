@@ -53,7 +53,9 @@ automatically before the new API starts.
 
 - **Accounts (tenants)**: sign up as a couple or a planning business. One account can hold
   many weddings. Users can belong to several accounts with a role in each:
-  owner, admin, editor or viewer.
+  owner, admin, editor or viewer. New members are **invited by email** and join only when
+  they open the link, so nobody is added to an account without agreeing to it. Passwords can
+  be changed from the account page or **reset by email** when forgotten.
 - **Guests**: a guest list with groups, age groups, dietary needs, CSV import and export.
   Every guest is invited **independently** to each event (day, evening, or custom events),
   with a separate **plus-one** allowance per event.
@@ -107,11 +109,11 @@ layout: `models.py` (tables), `schemas.py` (API contracts), `service.py` (busine
 
 | Module | Responsibility | Depends on |
 |---|---|---|
-| `tenancy` | Tenants, users, memberships, roles, JWT auth, tenant-scoping dependencies | – |
+| `notifications` | Email transports (SMTP, console, file, in-memory for tests) | – |
+| `tenancy` | Tenants, users, memberships, invitations, password resets, JWT auth, tenant-scoping dependencies | notifications |
 | `weddings` | Weddings and their events (day, evening, other) | tenancy |
 | `guests` | Guests, per-event invitations and plus-ones, CSV import/export | weddings |
 | `media` | Image uploads (sniffed by content, never SVG) and public serving | weddings |
-| `notifications` | Email transports (SMTP, console, in-memory for tests) | – |
 | `seating` | Tables, seating rules, assignments, the auto-arrange solver (`solver.py`) | guests |
 | `invitations` | Card design format (`design.py`), drafts, rendering, sending, delivery worker, link tracking | guests, media, notifications |
 | `rsvp` | Public RSVP pages, replies dashboards, engagement, manual replies | invitations |
@@ -138,11 +140,20 @@ Isolation is enforced centrally in `app/core/db.py`, not left to each query:
   `UPDATE` and `DELETE` on tenant-scoped models, including relationship loads.
 - New rows are stamped with the tenant on flush. Writing a row that belongs to another tenant
   raises an error.
-- Public endpoints (RSVP pages, tracked links, images) are addressed by unguessable tokens or
-  UUIDs. They bind the owning tenant once the token resolves.
+- Public endpoints (RSVP pages, tracked links, images, invitation links) are addressed by
+  unguessable tokens or UUIDs. They bind the owning tenant once the token resolves.
 
 `tests/test_tenancy.py` checks isolation through both the API and the ORM, and the
 end-to-end suite checks it through the browser.
+
+### Abuse limits
+
+`app/core/ratelimit.py` is a small in-process limiter. Sign in, sign up and forgotten-password
+requests are limited per client address, as are the guest-facing routes (RSVP pages, tracked
+links, calendar files, invitation links). Test sends and member invitations are limited per
+user, because both send email to an address of the caller's choosing. Refused requests get a
+429 with a `Retry-After` header. Each API process keeps its own counts, so the effective
+limit is the configured number multiplied by `WEB_CONCURRENCY`. See `docs/security.md`.
 
 ### Invitations, designs and tracking
 
@@ -153,8 +164,10 @@ end-to-end suite checks it through the browser.
    renders the same at any size.
 2. **Sending** renders a personalised email per guest, each with its own tracking token, and
    queues it in `invitation_deliveries`. The worker delivers it.
-3. Email clients strip the CSS that free-form layouts need, so the email itself is a styled
-   message with a button. The button goes to `/i/<token>`. The web app records the click
+3. The card's typefaces are bundled with the web app (`@fontsource` packages, see
+   `frontend/src/modules/invitations/designer/webfonts.ts`), so guests' browsers never
+   contact Google Fonts. Email clients strip the CSS that free-form layouts need, so the
+   email itself is a styled message with a button. The button goes to `/i/<token>`. The web app records the click
    (`POST /api/v1/public/links/<token>/open`) and redirects to the guest's RSVP page, where the
    **designed card is shown personalised** above the reply form.
 4. Clicks are de-duplicated within 30 seconds and stored with a timestamp and user agent only,
@@ -197,8 +210,8 @@ emails point at it.
 
 | Suite | What it covers | Run |
 |---|---|---|
-| Backend (`backend/tests`, 65 tests) | API, tenant isolation, seating solver, invitations, tracking, RSVP, media, config | `cd backend && uv run pytest` (or `make test`) |
-| End-to-end (`e2e/`, Playwright) | Real browser + API + email worker: sign-up and account isolation, guests and seating rules, designing and sending invitations, tracked links, RSVP, replies | `cd e2e && npm ci && npx playwright install chromium && npm test` |
+| Backend (`backend/tests`, 79 tests) | API, tenant isolation, invitations to join an account, password resets, abuse limits, seating solver, invitations, tracking, RSVP, media, config | `cd backend && uv run pytest` (or `make test`) |
+| End-to-end (`e2e/`, Playwright) | Real browser + API + email worker: sign-up and account isolation, joining by invitation, password change and reset, guests and seating rules, designing and sending invitations, tracked links, RSVP, replies | `cd e2e && npm ci && npx playwright install chromium && npm test` |
 | Frontend types | Strict TypeScript across the SPA | `cd frontend && npm run build` |
 
 ```bash
@@ -258,6 +271,10 @@ All settings are environment variables. See `.env.example` and `backend/app/core
 | `CORS_ORIGINS` | – | Only needed if the SPA is served from a different origin |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `720` | |
 | `WORKER_POLL_INTERVAL_SECONDS`, `WORKER_BATCH_SIZE`, `DELIVERY_MAX_ATTEMPTS` | `2`, `50`, `3` | |
+| `RATE_LIMIT_AUTH_PER_MINUTE` | `10` | Sign in, sign up and forgotten-password requests per client address. `0` disables |
+| `RATE_LIMIT_PUBLIC_PER_MINUTE` | `60` | Guest-facing requests (RSVP, tracked links, calendars, invitation links) per client address |
+| `RATE_LIMIT_EMAIL_PER_HOUR` | `30` | Test sends and member invitations per user |
+| `INVITE_EXPIRE_DAYS`, `PASSWORD_RESET_EXPIRE_MINUTES` | `7`, `60` | How long invitation and reset links stay valid |
 | `WEB_CONCURRENCY` | `2` | API processes |
 | `DOMAIN`, `WEB_BIND`, `WEB_PORT` | – | Caddy's domain, and where the web app listens on the host |
 
@@ -271,12 +288,16 @@ All settings are environment variables. See `.env.example` and `backend/app/core
 - [ ] Back up the `db-data` and `media` volumes. For several API replicas, move media to
       object storage by implementing `MediaStorage` in `app/modules/media/storage.py`.
 - [ ] Mention invitation link-click tracking in your privacy notice to couples and guests.
-- [ ] Consider rate limiting the public endpoints (`/api/v1/public/*`) and the auth routes
-      at the proxy.
+      Fonts and images are served from your own domain, so there is no third-party request
+      to declare.
+- [ ] The built-in abuse limits are per API process. For a busy deployment, add a proxy-level
+      limit on `/api/v1/auth/*` and `/api/v1/public/*` as well.
+- [ ] The web app sends a content security policy (`frontend/security-headers.conf`). If you
+      add a script, image or API host, update it.
 
 ## Not built yet
 
-Ideas that fit the modular structure: email verification and password reset, billing and
+Ideas that fit the modular structure: email verification at sign-up, billing and
 plans per tenant, PostgreSQL row-level security as a second line of defence, households
 (one invitation per family), table seat numbers and a printable plan, SMS invitations,
 rasterising the card into the email itself, and S3 media storage.

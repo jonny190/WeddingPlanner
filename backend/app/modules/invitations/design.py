@@ -18,14 +18,16 @@ DESIGN_WIDTH_PX = 600
 
 
 class FontOption(BaseModel):
+    """A family the card designer offers. The web app ships these fonts itself (see
+    frontend/src/modules/invitations/designer/webfonts.ts), so guests never fetch them from
+    a third party. Keep the two lists in step."""
+
     family: str
     category: Literal["serif", "sans-serif", "script"]
     # CSS stack used where the web font cannot load (most email clients).
     fallback: str
     weights: list[int]
     italic: bool
-    # The `family=` value for the Google Fonts CSS2 API.
-    google_spec: str
 
 
 _SERIF = "Georgia, 'Times New Roman', serif"
@@ -35,21 +37,12 @@ _SCRIPT = "'Snell Roundhand', 'Apple Chancery', 'Brush Script MT', cursive"
 
 def _font(family: str, category: str, weights: list[int], italic: bool) -> FontOption:
     fallback = {"serif": _SERIF, "sans-serif": _SANS, "script": _SCRIPT}[category]
-    name = family.replace(" ", "+")
-    if weights == [400] and not italic:
-        spec = name
-    elif italic:
-        axes = [f"0,{w}" for w in weights] + ["1,400"]
-        spec = f"{name}:ital,wght@{';'.join(axes)}"
-    else:
-        spec = f"{name}:wght@{';'.join(str(w) for w in weights)}"
     return FontOption(
         family=family,
         category=category,
         fallback=f"'{family}', {fallback}",
         weights=weights,
         italic=italic,
-        google_spec=spec,
     )
 
 

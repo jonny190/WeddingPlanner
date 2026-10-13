@@ -2,48 +2,28 @@
 import { useEffect } from "react";
 import type { FontCategory, FontOption } from "./types";
 
-/** Families already requested from Google Fonts in this page (shared app-wide). */
-const requestedFamilies = new Set<string>();
-let preconnected = false;
+let loading: Promise<unknown> | null = null;
 
-/** Inject Google Fonts stylesheets for any families not requested yet. Idempotent. */
-export function loadWebFonts(fonts: readonly FontOption[]): void {
+/**
+ * Load the card typefaces. They are bundled with the app (webfonts.ts) rather than fetched
+ * from Google Fonts, so guests' browsers never contact a third party. The bundle is pulled
+ * in once, the first time a card is shown; the browser then downloads only the font files
+ * the page uses.
+ */
+export function loadWebFonts(): void {
   if (typeof document === "undefined") return;
-  const pending: FontOption[] = [];
-  for (const font of fonts) {
-    if (!font || !font.google_spec || requestedFamilies.has(font.family)) continue;
-    requestedFamilies.add(font.family);
-    pending.push(font);
-  }
-  if (pending.length === 0) return;
-  if (!preconnected) {
-    preconnected = true;
-    const pre = document.createElement("link");
-    pre.rel = "preconnect";
-    pre.href = "https://fonts.gstatic.com";
-    pre.crossOrigin = "anonymous";
-    document.head.appendChild(pre);
-  }
-  // Several families share one request; keep URLs a sensible length.
-  for (let i = 0; i < pending.length; i += 12) {
-    const chunk = pending.slice(i, i + 12);
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = `https://fonts.googleapis.com/css2?${chunk
-      .map((f) => `family=${f.google_spec}`)
-      .join("&")}&display=swap`;
-    link.dataset.dzFonts = chunk.map((f) => f.family).join(",");
-    document.head.appendChild(link);
-  }
+  loading ??= import("./webfonts").catch(() => {
+    // Fall back to the catalog's stacks (Georgia and friends) if the chunk fails to load.
+    loading = null;
+  });
 }
 
-/** Load Google Fonts for the given font options (idempotent, shared across the app). */
-export function useWebFonts(fonts: FontOption[]): void {
-  const key = fonts.map((f) => f.family).join("|");
+/** Make sure the card typefaces are available while a component showing a card is mounted. */
+export function useWebFonts(fonts: readonly FontOption[]): void {
+  const wanted = fonts.length > 0;
   useEffect(() => {
-    loadWebFonts(fonts);
-    // `key` captures everything that matters about `fonts`.
-  }, [key]);
+    if (wanted) loadWebFonts();
+  }, [wanted]);
 }
 
 const indexCache = new WeakMap<readonly FontOption[], Map<string, FontOption>>();

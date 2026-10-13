@@ -1,19 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { qk } from "../../api/queryKeys";
-import type { Member, MemberCreate, Role, Tenant } from "../../api/types";
+import type { Invite, InviteCreate, Member, PasswordChange, Role, Tenant } from "../../api/types";
 import { useSession } from "../../auth/session";
 
 export function useMembers() {
   return useQuery({ queryKey: qk.members, queryFn: () => api.get<Member[]>("/tenants/current/members") });
-}
-
-export function useAddMember() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data: MemberCreate) => api.post<Member>("/tenants/current/members", data),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: qk.members }),
-  });
 }
 
 export function useUpdateMember() {
@@ -31,6 +23,35 @@ export function useRemoveMember() {
     mutationFn: (id: string) => api.delete(`/tenants/current/members/${id}`),
     onSuccess: () => void qc.invalidateQueries({ queryKey: qk.members }),
   });
+}
+
+/** Invitations sent but not yet accepted (admins only). */
+export function useInvites(enabled = true) {
+  return useQuery({
+    queryKey: qk.invites,
+    queryFn: () => api.get<Invite[]>("/tenants/current/invites"),
+    enabled,
+  });
+}
+
+export function useInviteMember() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: InviteCreate) => api.post<Invite>("/tenants/current/invites", data),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: qk.invites }),
+  });
+}
+
+export function useRevokeInvite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/tenants/current/invites/${id}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: qk.invites }),
+  });
+}
+
+export function useChangePassword() {
+  return useMutation({ mutationFn: (data: PasswordChange) => api.post<void>("/auth/password", data) });
 }
 
 export function useRenameTenant() {

@@ -47,6 +47,16 @@ class Settings(BaseSettings):
     worker_batch_size: int = 50
     delivery_max_attempts: int = 3
 
+    # Abuse limits, counted per client IP (or per user where noted) in each API process.
+    # Set a limit to 0 to switch that bucket off.
+    rate_limit_auth_per_minute: int = 10  # sign in, sign up, forgotten password
+    rate_limit_public_per_minute: int = 60  # guest RSVP pages, tracked links, calendars
+    rate_limit_email_per_hour: int = 30  # per user: test sends and member invitations
+
+    # How long a member invitation link and a password reset link stay valid.
+    invite_expire_days: int = 7
+    password_reset_expire_minutes: int = 60
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

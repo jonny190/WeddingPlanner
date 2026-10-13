@@ -45,6 +45,8 @@ export interface SessionValue {
   error: unknown;
   login: (input: LoginRequest) => Promise<void>;
   signup: (input: SignupRequest) => Promise<void>;
+  /** Sign in with a session the API returned elsewhere (accepting an invitation, resetting a password). */
+  startSession: (res: SessionResponse, preferredTenantId?: string | null) => void;
   logout: () => void;
   switchTenant: (tenantId: string) => void;
   /** Re-read the user and their accounts (after creating or renaming one). */
@@ -112,10 +114,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   );
 
   const startSession = useCallback(
-    (res: SessionResponse) => {
+    (res: SessionResponse, preferredTenantId?: string | null) => {
       sessionStore.setToken(res.access_token);
       qc.clear();
-      apply(res.user, res.tenants);
+      apply(res.user, res.tenants, preferredTenantId);
     },
     [apply, qc],
   );
@@ -176,12 +178,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       error: state.error,
       login,
       signup,
+      startSession,
       logout,
       switchTenant,
       refresh,
       retry: () => void load(),
     };
-  }, [state, login, signup, logout, switchTenant, refresh, load]);
+  }, [state, login, signup, startSession, logout, switchTenant, refresh, load]);
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

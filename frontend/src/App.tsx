@@ -9,6 +9,9 @@ import { AppShell } from "./layout/AppShell";
 // Pages are code-split so guests opening an RSVP link only download what they need.
 const LoginPage = lazy(() => import("./auth/LoginPage"));
 const SignupPage = lazy(() => import("./auth/SignupPage"));
+const ForgotPasswordPage = lazy(() => import("./auth/ForgotPasswordPage"));
+const ResetPasswordPage = lazy(() => import("./auth/ResetPasswordPage"));
+const InvitePage = lazy(() => import("./auth/InvitePage"));
 const WeddingsPage = lazy(() => import("./modules/weddings/WeddingsPage"));
 const AccountPage = lazy(() => import("./modules/account/AccountPage"));
 const WeddingLayout = lazy(() => import("./modules/weddings/WeddingLayout"));
@@ -61,6 +64,25 @@ export default function App() {
             </GuestOnly>
           }
         />
+
+        <Route
+          path="/forgot-password"
+          element={
+            <GuestOnly>
+              <ForgotPasswordPage />
+            </GuestOnly>
+          }
+        />
+        <Route
+          path="/reset-password/:token"
+          element={
+            <GuestOnly>
+              <ResetPasswordPage />
+            </GuestOnly>
+          }
+        />
+        {/* Accepting an invitation works whether or not you are signed in. */}
+        <Route path="/invite/:token" element={<InvitePage />} />
 
         {/* Public pages for wedding guests: no sign-in, no app chrome. */}
         <Route path="/i/:token" element={<LinkOpenPage />} />

@@ -54,8 +54,14 @@ def session_factory(engine):
 
 
 @pytest.fixture
-def client(settings, engine):
-    with TestClient(create_app(settings, engine)) as client:
+def mailbox() -> MemoryEmailBackend:
+    """Where the API's own emails land (member invitations, password resets)."""
+    return MemoryEmailBackend()
+
+
+@pytest.fixture
+def client(settings, engine, mailbox):
+    with TestClient(create_app(settings, engine, email_backend=mailbox)) as client:
         yield client
 
 

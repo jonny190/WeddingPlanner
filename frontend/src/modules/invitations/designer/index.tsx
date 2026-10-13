@@ -55,7 +55,7 @@ export interface EmailStyleEditorProps {
 /** Controls for the email's look: header image, colours, font, button text. */
 export { EmailStyleEditor } from "./EmailStyleEditor";
 
-/** Load Google Fonts for the given font options (idempotent, shared across the app). */
+/** Make the card typefaces (bundled with the app) available while a card is on screen. */
 export { useWebFonts } from "./fonts";
 
 /** Replace {{placeholder}} markers using `values`; unknown markers are left untouched. */

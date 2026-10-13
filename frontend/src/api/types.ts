@@ -63,11 +63,41 @@ export interface Member {
   role: Role;
 }
 
-export interface MemberCreate {
+/** An invitation to join an account that has been emailed but not yet accepted. */
+export interface Invite {
+  id: string;
   email: string;
   role: Role;
-  full_name?: string | null;
-  password?: string | null;
+  invited_by_name: string | null;
+  created_at: string;
+  expires_at: string;
+}
+
+export interface InviteCreate {
+  email: string;
+  role: Role;
+}
+
+/** What the holder of an invitation link sees before accepting. */
+export interface InvitePublic {
+  account_id: string;
+  account_name: string;
+  email: string;
+  role: Role;
+  invited_by_name: string | null;
+  expires_at: string;
+  /** A login already exists for the invited address, so they sign in rather than sign up. */
+  has_account: boolean;
+}
+
+export interface InviteAccept {
+  full_name?: string;
+  password?: string;
+}
+
+export interface PasswordChange {
+  current_password: string;
+  new_password: string;
 }
 
 // --- Weddings & events ---------------------------------------------------------------------

@@ -17,7 +17,6 @@ export function AuthLayout({ title, subtitle, children, footer }: {
             <p className="auth-quote">Every guest, every reply, every seat — beautifully in hand.</p>
             <p className="auth-quote-sub">Guest lists, invitations, RSVPs and seating plans for couples and planners.</p>
           </div>
-          <span className="auth-by">by Coria</span>
         </div>
       </aside>
       <main className="auth-main">

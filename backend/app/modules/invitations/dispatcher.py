@@ -3,7 +3,7 @@
 import logging
 from datetime import timedelta
 
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, update
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import Settings
@@ -15,6 +15,8 @@ from app.modules.notifications.email import EmailBackend, EmailMessage
 logger = logging.getLogger(__name__)
 
 # A delivery stuck in "sending" this long was claimed by a worker that died; try again.
+# A live worker touches every row it still holds before each send (see _heartbeat), so a
+# slow SMTP server cannot make a healthy batch look abandoned, however large the batch.
 STALE_AFTER = timedelta(minutes=10)
 
 
@@ -53,6 +55,21 @@ def _claim(db: Session, batch_size: int) -> list[InvitationDelivery]:
     return list(batch)
 
 
+def _heartbeat(db: Session, pending: list[InvitationDelivery]) -> None:
+    """Mark the rows this worker still holds as alive, so no other worker re-queues them."""
+    if not pending:
+        return
+    db.execute(
+        update(InvitationDelivery)
+        .where(
+            InvitationDelivery.id.in_([d.id for d in pending]),
+            InvitationDelivery.status == DeliveryStatus.sending,
+        )
+        .values(updated_at=utcnow())
+    )
+    db.commit()
+
+
 def _record_sent(db: Session, delivery: InvitationDelivery) -> None:
     sent_at = utcnow()
     delivery.status = DeliveryStatus.sent
@@ -81,7 +98,8 @@ def dispatch_due_deliveries(
     with session_factory() as db:
         _requeue_stale(db)
         batch = _claim(db, settings.worker_batch_size)
-        for delivery in batch:
+        for index, delivery in enumerate(batch):
+            _heartbeat(db, batch[index:])
             try:
                 backend.send(
                     EmailMessage(

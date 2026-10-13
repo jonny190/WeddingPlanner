@@ -8,6 +8,8 @@ import { SessionProvider } from "./auth/session";
 import { ConfirmProvider } from "./components/ConfirmDialog";
 import { ToastProvider } from "./components/Toasts";
 import { NavigationGuardProvider } from "./layout/NavigationGuard";
+// The app's own typefaces, served from this origin (no third-party font requests).
+import "./styles/fonts.css";
 import "./styles/tokens.css";
 import "./styles/base.css";
 import "./styles/components.css";
