@@ -18,4 +18,4 @@ def installed_modules() -> list[Module]:
     from app.modules.tenancy.module import module as tenancy
     from app.modules.weddings.module import module as weddings
 
-    return [tenancy, weddings, guests, media, notifications, seating, invitations, rsvp]
+    return [notifications, tenancy, weddings, guests, media, seating, invitations, rsvp]

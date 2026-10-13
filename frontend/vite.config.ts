@@ -9,6 +9,12 @@ const apiTarget = process.env.VITE_API_PROXY_TARGET ?? "http://localhost:8000";
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    // Small assets are normally inlined as data: URIs. Fonts never are: the content security
+    // policy allows fonts from this origin only (font-src 'self'), and the tiny subset files
+    // from @fontsource would otherwise be refused by the browser.
+    assetsInlineLimit: (filePath) => (/\.(woff2?|ttf|otf|eot)$/i.test(filePath) ? false : undefined),
+  },
   server: {
     port: 5173,
     proxy: { "/api": apiTarget },

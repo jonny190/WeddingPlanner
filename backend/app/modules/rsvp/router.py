@@ -3,6 +3,7 @@ import uuid
 from fastapi import APIRouter
 from fastapi.responses import Response
 
+from app.core.ratelimit import PublicRequest
 from app.modules.guests.models import RsvpStatus
 from app.modules.rsvp import service
 from app.modules.rsvp.schemas import (
@@ -17,7 +18,7 @@ from app.modules.rsvp.schemas import (
 from app.modules.tenancy.deps import DB, AppSettings, CurrentTenant, EditorTenant
 
 router = APIRouter(prefix="/weddings/{wedding_id}", tags=["Replies"])
-public_router = APIRouter(prefix="/rsvp", tags=["Public RSVP"])
+public_router = APIRouter(prefix="/rsvp", tags=["Public RSVP"], dependencies=[PublicRequest])
 
 
 @router.get("/summary", response_model=WeddingSummary)

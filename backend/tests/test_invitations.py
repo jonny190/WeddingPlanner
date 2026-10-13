@@ -232,3 +232,39 @@ def test_placeholders_and_fonts_are_listed(api):
     assert {"first_name", "rsvp_link", "event_when"} <= names
     fonts = api.get("/invitation-fonts").json()
     assert any(f["family"] == "Great Vibes" and f["category"] == "script" for f in fonts)
+
+
+def test_slow_batches_are_not_requeued_as_stale(
+    api, wedding, day, drafts, draft, outbox, session_factory
+):
+    """A worker touches the rows it still holds before each send, so a long batch is never
+    mistaken for one left behind by a dead worker and sent a second time."""
+    from datetime import timedelta
+
+    from app.core.db import utcnow
+    from app.modules.invitations import dispatcher
+
+    for name in ("Jo", "Pat", "Sam"):
+        guest_for(api, wedding, day, name)
+    api.post(f"{drafts}/{draft['id']}/send", json={})
+
+    # Pretend the batch was claimed long ago by a worker that then died.
+    with session_factory() as db:
+        db.query(InvitationDelivery).update(
+            {"status": "sending", "updated_at": utcnow() - dispatcher.STALE_AFTER * 2}
+        )
+        db.commit()
+
+    seen = []
+
+    def slow_send(message):
+        # While one email is on its way, the rest of the batch must look alive.
+        with session_factory() as db:
+            freshest = max(d.updated_at for d in db.query(InvitationDelivery))
+            assert utcnow() - freshest < timedelta(seconds=30)
+        seen.append(message.to)
+
+    outbox.send = slow_send
+    assert outbox.deliver() == 3  # the stale rows were requeued and claimed
+    assert sorted(seen) == ["jo@example.com", "pat@example.com", "sam@example.com"]
+    assert outbox.deliver() == 0  # and nothing is sent twice

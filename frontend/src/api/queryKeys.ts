@@ -32,6 +32,8 @@ export const qk = {
   fonts: ["invitation-fonts"] as const,
   placeholders: ["invitation-placeholders"] as const,
   members: ["tenant", "members"] as const,
+  invites: ["tenant", "invites"] as const,
+  invite: (token: string) => ["public", "invite", token] as const,
   rsvp: (token: string) => ["public", "rsvp", token] as const,
 };
 

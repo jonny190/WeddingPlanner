@@ -1,17 +1,26 @@
 import { useState } from "react";
 import { ApiError, errorMessage } from "../../api/client";
-import type { Member, Role } from "../../api/types";
+import type { Invite, Member, Role } from "../../api/types";
 import { useSession } from "../../auth/session";
 import { ROLE_LABELS, RoleBadge } from "../../components/Badge";
 import { Button, IconButton } from "../../components/Button";
 import { useConfirm } from "../../components/ConfirmDialog";
 import { ErrorState } from "../../components/EmptyState";
 import { SelectField, TextField } from "../../components/fields";
-import { Callout, PageHeader } from "../../components/misc";
+import { PageHeader } from "../../components/misc";
 import { PageLoader } from "../../components/Spinner";
 import { useToast } from "../../components/Toasts";
-import { initials } from "../../lib/format";
-import { useAddMember, useMembers, useRemoveMember, useRenameTenant, useUpdateMember } from "./api";
+import { formatDate, initials, parseDate } from "../../lib/format";
+import {
+  useChangePassword,
+  useInviteMember,
+  useInvites,
+  useMembers,
+  useRemoveMember,
+  useRenameTenant,
+  useRevokeInvite,
+  useUpdateMember,
+} from "./api";
 import { CreateAccountForm } from "./CreateAccountForm";
 import "./account.css";
 
@@ -50,15 +59,7 @@ export default function AccountPage() {
         </div>
       </section>
 
-      {user && (
-        <section className="card card-pad row">
-          <span className="avatar">{initials(user.full_name)}</span>
-          <div>
-            <strong>{user.full_name}</strong>
-            <div className="small muted">Signed in as {user.email}</div>
-          </div>
-        </section>
-      )}
+      {user && <LoginCard fullName={user.full_name} email={user.email} />}
     </div>
   );
 }
@@ -197,7 +198,8 @@ function MembersCard({ currentUserId, isAdmin }: { currentUserId: string; isAdmi
             ))}
           </ul>
         )}
-        {isAdmin && <AddMemberForm />}
+        {isAdmin && <PendingInvites />}
+        {isAdmin && <InviteMemberForm />}
         <details className="role-help">
           <summary className="small">What can each role do?</summary>
           <dl>
@@ -214,51 +216,79 @@ function MembersCard({ currentUserId, isAdmin }: { currentUserId: string; isAdmi
   );
 }
 
-function AddMemberForm() {
-  const add = useAddMember();
+function PendingInvites() {
+  const invites = useInvites();
+  const revoke = useRevokeInvite();
+  const toast = useToast();
+  if (!invites.data || invites.data.length === 0) return null;
+
+  const cancel = async (invite: Invite) => {
+    try {
+      await revoke.mutateAsync(invite.id);
+      toast.success(`Invitation to ${invite.email} withdrawn.`);
+    } catch (err) {
+      toast.error(err);
+    }
+  };
+
+  return (
+    <div className="stack-sm">
+      <h3 className="section-subtitle">Invited, not yet joined</h3>
+      <ul className="list-plain member-list">
+        {invites.data.map((invite) => (
+          <li key={invite.id} className="member-row">
+            <span className="avatar avatar-muted">{initials(invite.email)}</span>
+            <div className="member-main">
+              <strong>{invite.email}</strong>
+              <span className="small muted">
+                Invited{invite.invited_by_name ? ` by ${invite.invited_by_name}` : ""}, link valid until{" "}
+                {formatDate(parseDate(invite.expires_at))}
+              </span>
+            </div>
+            <RoleBadge role={invite.role} />
+            <IconButton
+              icon="trash"
+              tone="danger"
+              label={`Withdraw the invitation to ${invite.email}`}
+              onClick={() => void cancel(invite)}
+            />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function InviteMemberForm() {
+  const invite = useInviteMember();
   const toast = useToast();
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<Role>("editor");
-  const [fullName, setFullName] = useState("");
-  const [password, setPassword] = useState("");
-  const [needsDetails, setNeedsDetails] = useState(false);
-  const fieldErrors = add.error instanceof ApiError ? add.error.fieldErrors : {};
-
-  const reset = () => {
-    setEmail("");
-    setRole("editor");
-    setFullName("");
-    setPassword("");
-    setNeedsDetails(false);
-    add.reset();
-  };
+  const fieldErrors = invite.error instanceof ApiError ? invite.error.fieldErrors : {};
 
   return (
     <form
       className="add-member"
       onSubmit={(e) => {
         e.preventDefault();
-        add.mutate(
+        invite.mutate(
+          { email: email.trim(), role },
           {
-            email: email.trim(),
-            role,
-            full_name: needsDetails ? fullName.trim() || null : null,
-            password: needsDetails ? password || null : null,
-          },
-          {
-            onSuccess: (m) => {
-              toast.success(`${m.full_name} can now sign in to this account.`);
-              reset();
-            },
-            onError: (err) => {
-              // New people need a name and an initial password.
-              if (err instanceof ApiError && err.code === "new_user_details_required") setNeedsDetails(true);
+            onSuccess: (sent) => {
+              toast.success(`Invitation emailed to ${sent.email}.`);
+              setEmail("");
+              setRole("editor");
+              invite.reset();
             },
           },
         );
       }}
     >
-      <h3>Add a member</h3>
+      <h3>Invite someone</h3>
+      <p className="small muted">
+        They get an email with a link. Nothing changes until they open it and accept, and the link stops working
+        after a week.
+      </p>
       <div className="form-grid">
         <TextField
           label="Email"
@@ -275,49 +305,107 @@ function AddMemberForm() {
             </option>
           ))}
         </SelectField>
-        {needsDetails && (
-          <>
-            <div className="span-2">
-              <Callout tone="info">
-                {email || "This person"} doesn't have a login yet. Choose their name and a first password, and share
-                it with them privately.
-              </Callout>
-            </div>
+      </div>
+      {invite.isError && <p className="inline-error">{errorMessage(invite.error)}</p>}
+      <div className="form-actions">
+        <Button type="submit" icon="mail" variant="primary" loading={invite.isPending}>
+          Send invitation
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function LoginCard({ fullName, email }: { fullName: string; email: string }) {
+  const change = useChangePassword();
+  const toast = useToast();
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [mismatch, setMismatch] = useState(false);
+  const fieldErrors = change.error instanceof ApiError ? change.error.fieldErrors : {};
+  const wrongCurrent = change.error instanceof ApiError && change.error.code === "wrong_password";
+
+  return (
+    <section className="card">
+      <header className="card-header">
+        <div>
+          <h2 className="section-title">Your login</h2>
+          <div className="small muted">Your login is the same across every account you belong to.</div>
+        </div>
+      </header>
+      <div className="card-body stack">
+        <div className="row">
+          <span className="avatar">{initials(fullName)}</span>
+          <div>
+            <strong>{fullName}</strong>
+            <div className="small muted">Signed in as {email}</div>
+          </div>
+        </div>
+        <form
+          className="stack-sm"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (next !== confirm) {
+              setMismatch(true);
+              return;
+            }
+            setMismatch(false);
+            change.mutate(
+              { current_password: current, new_password: next },
+              {
+                onSuccess: () => {
+                  toast.success("Password changed.");
+                  setCurrent("");
+                  setNext("");
+                  setConfirm("");
+                  change.reset();
+                },
+              },
+            );
+          }}
+        >
+          <h3 className="section-subtitle">Change password</h3>
+          <div className="form-grid">
             <TextField
-              label="Their name"
+              label="Current password"
+              type="password"
+              autoComplete="current-password"
               required
-              maxLength={200}
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              error={fieldErrors.full_name}
+              value={current}
+              onChange={(e) => setCurrent(e.target.value)}
+              error={wrongCurrent ? "That is not your current password." : fieldErrors.current_password}
             />
+            <div />
             <TextField
-              label="Initial password"
+              label="New password"
               type="password"
               autoComplete="new-password"
               required
               minLength={8}
               hint="At least 8 characters."
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              error={fieldErrors.password}
+              value={next}
+              onChange={(e) => setNext(e.target.value)}
+              error={fieldErrors.new_password}
             />
-          </>
-        )}
+            <TextField
+              label="Repeat new password"
+              type="password"
+              autoComplete="new-password"
+              required
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              error={mismatch ? "The two passwords do not match." : undefined}
+            />
+          </div>
+          {change.isError && !wrongCurrent && <p className="inline-error">{errorMessage(change.error)}</p>}
+          <div className="form-actions">
+            <Button type="submit" variant="secondary" loading={change.isPending}>
+              Change password
+            </Button>
+          </div>
+        </form>
       </div>
-      {add.isError && !(add.error instanceof ApiError && add.error.code === "new_user_details_required") && (
-        <p className="inline-error">{errorMessage(add.error)}</p>
-      )}
-      <div className="form-actions">
-        {needsDetails && (
-          <Button variant="ghost" onClick={reset}>
-            Cancel
-          </Button>
-        )}
-        <Button type="submit" icon="plus" variant="primary" loading={add.isPending}>
-          Add member
-        </Button>
-      </div>
-    </form>
+    </section>
   );
 }

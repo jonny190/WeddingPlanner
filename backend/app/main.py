@@ -8,8 +8,10 @@ from app.core.config import Settings, get_settings
 from app.core.db import create_db_engine
 from app.core.errors import register_error_handlers
 from app.core.modules import validate_modules
+from app.core.ratelimit import RateLimiter
 from app.modules import installed_modules
 from app.modules.media.storage import LocalMediaStorage, MediaStorage
+from app.modules.notifications.email import EmailBackend, build_email_backend
 from app.modules.tenancy.deps import DB
 
 
@@ -17,6 +19,7 @@ def create_app(
     settings: Settings | None = None,
     engine: Engine | None = None,
     media_storage: MediaStorage | None = None,
+    email_backend: EmailBackend | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
     engine = engine or create_db_engine(settings.database_url)
@@ -32,6 +35,10 @@ def create_app(
     app.state.engine = engine
     app.state.session_factory = sessionmaker(engine, expire_on_commit=False)
     app.state.media_storage = media_storage or LocalMediaStorage(settings.media_root)
+    # Transactional mail the API sends straight away (member invitations, password resets).
+    # Invitations to guests go through the outbox and the worker instead.
+    app.state.email_backend = email_backend or build_email_backend(settings)
+    app.state.rate_limiter = RateLimiter()
 
     register_error_handlers(app)
     if settings.cors_origin_list:

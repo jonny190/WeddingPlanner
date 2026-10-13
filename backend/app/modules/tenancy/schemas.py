@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -51,14 +52,6 @@ class TenantUpdate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
 
 
-class MemberCreate(BaseModel):
-    email: EmailStr
-    role: Role = Role.editor
-    # Only needed when the person does not have an account yet.
-    full_name: str | None = Field(default=None, max_length=200)
-    password: str | None = Field(default=None, min_length=8, max_length=200)
-
-
 class MemberUpdate(BaseModel):
     role: Role
 
@@ -69,3 +62,51 @@ class MemberRead(BaseModel):
     email: str
     full_name: str
     role: Role
+
+
+class InviteCreate(BaseModel):
+    email: EmailStr
+    role: Role = Role.editor
+
+
+class InviteRead(BaseModel):
+    id: uuid.UUID
+    email: str
+    role: Role
+    invited_by_name: str | None
+    created_at: datetime
+    expires_at: datetime
+
+
+class InvitePublic(BaseModel):
+    """What the person holding an invitation link is shown before they accept it."""
+
+    account_id: uuid.UUID
+    account_name: str
+    email: str
+    role: Role
+    invited_by_name: str | None
+    expires_at: datetime
+    # True when a login already exists for the invited address, so the page asks them to
+    # sign in rather than create another account.
+    has_account: bool
+
+
+class InviteAccept(BaseModel):
+    # Needed only when the invited person has no login yet.
+    full_name: str | None = Field(default=None, min_length=1, max_length=200)
+    password: str | None = Field(default=None, min_length=8, max_length=200)
+
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8, max_length=200)
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetRequest(BaseModel):
+    token: str
+    new_password: str = Field(min_length=8, max_length=200)

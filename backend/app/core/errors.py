@@ -49,11 +49,25 @@ class Conflict(AppError):
     default_message = "Conflict"
 
 
+class TooManyRequests(AppError):
+    status_code = 429
+    code = "rate_limited"
+    default_message = "Too many requests, please try again shortly"
+
+    def __init__(self, message: str | None = None, *, retry_after: int = 60) -> None:
+        super().__init__(message)
+        self.retry_after = retry_after
+
+
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def _handle_app_error(_request: Request, exc: AppError) -> JSONResponse:
         body: dict[str, Any] = {"detail": exc.message, "code": exc.code}
         if exc.extra is not None:
             body["extra"] = exc.extra
-        headers = {"WWW-Authenticate": "Bearer"} if isinstance(exc, Unauthorized) else None
+        headers: dict[str, str] | None = None
+        if isinstance(exc, Unauthorized):
+            headers = {"WWW-Authenticate": "Bearer"}
+        elif isinstance(exc, TooManyRequests):
+            headers = {"Retry-After": str(exc.retry_after)}
         return JSONResponse(status_code=exc.status_code, content=body, headers=headers)

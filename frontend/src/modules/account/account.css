@@ -67,3 +67,13 @@
     margin-left: 44px;
   }
 }
+
+.section-subtitle {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.avatar-muted {
+  opacity: 0.55;
+}

@@ -2,6 +2,7 @@ import uuid
 
 from fastapi import APIRouter, Request, status
 
+from app.core.ratelimit import PublicRequest, check_per_user
 from app.modules.guests.schemas import BulkResult
 from app.modules.invitations import service
 from app.modules.invitations.design import FONT_CATALOG, FontOption
@@ -24,7 +25,7 @@ from app.modules.invitations.schemas import (
 from app.modules.tenancy.deps import DB, AppSettings, CurrentTenant, EditorTenant
 
 router = APIRouter(tags=["Invitations"])
-public_router = APIRouter(prefix="/links", tags=["Public RSVP"])
+public_router = APIRouter(prefix="/links", tags=["Public RSVP"], dependencies=[PublicRequest])
 drafts = "/weddings/{wedding_id}/events/{event_id}/invitation-drafts"
 
 
@@ -115,10 +116,13 @@ def send_test(
     event_id: uuid.UUID,
     draft_id: uuid.UUID,
     data: TestSendRequest,
+    request: Request,
     db: DB,
     settings: AppSettings,
-    _ctx: EditorTenant,
+    ctx: EditorTenant,
 ):
+    # Test sends go to any address, so cap how many one person can fire off.
+    check_per_user(request, "email", ctx.user_id, "rate_limit_email_per_hour", 3600)
     return service.send_test(
         db, wedding_id, event_id, draft_id, data.email, data.guest_id, settings.public_app_url
     )

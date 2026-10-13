@@ -100,6 +100,12 @@ def bind_tenant(session: Session, tenant_id: uuid.UUID) -> None:
     session.info[TENANT_KEY] = tenant_id
 
 
+def unbind_tenant(session: Session) -> None:
+    """Lift the tenant filter again, for the rare step that must see across accounts
+    (listing every account a user belongs to after they accept an invitation)."""
+    session.info.pop(TENANT_KEY, None)
+
+
 @event.listens_for(Session, "do_orm_execute")
 def _scope_to_tenant(state: ORMExecuteState) -> None:
     tenant_id = state.session.info.get(TENANT_KEY)

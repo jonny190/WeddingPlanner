@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from enum import StrEnum
 
 from sqlalchemy import ForeignKey, String, UniqueConstraint
@@ -45,4 +46,25 @@ class Membership(IdMixin, TimestampMixin, TenantScoped, Base):
     role: Mapped[Role] = mapped_column(enum_type(Role))
 
     user: Mapped[User] = relationship(lazy="joined")
+    tenant: Mapped[Tenant] = relationship(lazy="joined")
+
+
+class MembershipInvite(IdMixin, TimestampMixin, TenantScoped, Base):
+    """An offer to join an account, sent by email. Nobody is added to an account until they
+    open the link themselves, so a membership is always something the person agreed to."""
+
+    __tablename__ = "membership_invites"
+    __table_args__ = (UniqueConstraint("tenant_id", "email"),)
+
+    email: Mapped[str] = mapped_column(String(320))
+    role: Mapped[Role] = mapped_column(enum_type(Role))
+    # Only a hash of the secret in the link is kept, so the table alone cannot be used
+    # to accept invitations.
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    invited_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    expires_at: Mapped[datetime] = mapped_column()
+
+    invited_by: Mapped[User | None] = relationship(lazy="joined")
     tenant: Mapped[Tenant] = relationship(lazy="joined")

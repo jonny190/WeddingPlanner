@@ -12,8 +12,6 @@ export interface FontOption {
   fallback: string;
   weights: number[];
   italic: boolean;
-  /** `family=` value for https://fonts.googleapis.com/css2 */
-  google_spec: string;
 }
 
 export interface Placeholder {

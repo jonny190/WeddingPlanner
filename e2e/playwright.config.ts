@@ -42,6 +42,10 @@ export default defineConfig({
         PUBLIC_APP_URL: `http://localhost:${WEB_PORT}`,
         SECRET_KEY: "e2e-secret-key-that-is-at-least-32-bytes",
         WORKER_POLL_INTERVAL_SECONDS: "0.3",
+        // Every test comes from one address, so the per-client limits must not bite.
+        RATE_LIMIT_AUTH_PER_MINUTE: "1000",
+        RATE_LIMIT_PUBLIC_PER_MINUTE: "1000",
+        RATE_LIMIT_EMAIL_PER_HOUR: "1000",
       },
     },
     {
