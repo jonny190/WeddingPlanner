@@ -72,8 +72,10 @@ automatically before the new API starts.
   audience: not yet sent, no reply, opened but no reply, never opened, everyone, or chosen
   guests. A dry run lists recipients and anyone without an email. Emails go through a
   background worker with retries, and posted invitations can be marked as sent.
-- **RSVP and replies**: each guest gets a personal page showing their personalised card for
-  every event they've been sent, with a reply form (plus-one name, dietary needs, message).
+- **RSVP and replies**: each guest gets a personal page: a parchment envelope addressed to
+  them in green ink, which turns over, and opens at the wax seal to one letter: the couple's
+  note, their personalised card for every event they've been sent, a hand-written sign-off,
+  and a reply slip (plus-one name, dietary needs, message).
   Couples see per-event dashboards with headcounts and dietary lists, can record replies
   received by phone or post, and can export to CSV.
 - **Click tracking**: each email carries a unique link. Opening it records the click against
