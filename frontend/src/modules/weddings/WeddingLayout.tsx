@@ -18,6 +18,7 @@ const NAV: { to: string; label: string; icon: IconName; end?: boolean }[] = [
   { to: "guests", label: "Guests", icon: "users" },
   { to: "seating", label: "Seating", icon: "table" },
   { to: "menus", label: "Menus", icon: "dish" },
+  { to: "venues", label: "Venues", icon: "pin" },
   { to: "invitations", label: "Invitations", icon: "envelope" },
   { to: "replies", label: "Replies", icon: "inbox" },
   { to: "settings", label: "Settings", icon: "settings" },

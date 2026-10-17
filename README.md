@@ -83,6 +83,11 @@ automatically before the new API starts.
   and a reply slip (plus-one name, dietary needs, message).
   Couples see per-event dashboards with headcounts and dietary lists, can record replies
   received by phone or post, and can export to CSV.
+- **Venues**: track every venue being considered, with status, address, website, email and
+  phone, capacity, prices (hire, per head, deposit) and notes, and up to ten contacts each.
+  Choosing a venue for an event puts its name and address on the invitations, on the guest's
+  page and in the calendar entry guests add from their invitation; `{{calendar_link}}` puts
+  that link in the email too.
 - **Agents and integrations**: members create **API keys** for software that works in the
   account on their behalf, such as an AI agent. A key is bound to one account and to its
   owner's role, and is read-only unless allowed to make changes, with sending email a further
@@ -124,7 +129,7 @@ layout: `models.py` (tables), `schemas.py` (API contracts), `service.py` (busine
 |---|---|---|
 | `notifications` | Email transports (SMTP, console, file, in-memory for tests) | – |
 | `tenancy` | Tenants, users, memberships, invitations, password resets, API keys, JWT auth, tenant-scoping dependencies | notifications |
-| `weddings` | Weddings and their events (day, evening, other) | tenancy |
+| `weddings` | Weddings, their events (day, evening, other), and venues (`venues.py`) with the venue chosen for each event | tenancy |
 | `guests` | Guests, per-event invitations and plus-ones, CSV import/export | weddings |
 | `media` | Image uploads (sniffed by content, never SVG) and public serving | weddings |
 | `seating` | Tables, seating rules, assignments, the auto-arrange solver (`solver.py`) | guests |
@@ -234,8 +239,8 @@ emails point at it.
 
 | Suite | What it covers | Run |
 |---|---|---|
-| Backend (`backend/tests`, 101 tests) | API, tenant isolation, invitations to join an account, password resets, API keys, the MCP server, abuse limits, seating solver, menus and dish choices, invitations, tracking, RSVP, media, config | `cd backend && uv run pytest` (or `make test`) |
-| End-to-end (`e2e/`, Playwright) | Real browser + API + email worker: sign-up and account isolation, joining by invitation, password change and reset, API keys and the MCP server, guests and seating rules, menus and dish choices, designing and sending invitations, tracked links, RSVP, replies | `cd e2e && npm ci && npx playwright install chromium && npm test` |
+| Backend (`backend/tests`, 108 tests) | API, tenant isolation, invitations to join an account, password resets, API keys, the MCP server, abuse limits, venues, seating solver, menus and dish choices, invitations, tracking, RSVP, media, config | `cd backend && uv run pytest` (or `make test`) |
+| End-to-end (`e2e/`, Playwright) | Real browser + API + email worker: sign-up and account isolation, joining by invitation, password change and reset, API keys and the MCP server, venues and the calendar address, guests and seating rules, menus and dish choices, designing and sending invitations, tracked links, RSVP, replies | `cd e2e && npm ci && npx playwright install chromium && npm test` |
 | Frontend types | Strict TypeScript across the SPA | `cd frontend && npm run build` |
 
 ```bash

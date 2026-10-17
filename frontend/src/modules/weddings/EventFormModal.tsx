@@ -7,13 +7,15 @@ import { Callout } from "../../components/misc";
 import { Modal } from "../../components/Modal";
 import { useToast } from "../../components/Toasts";
 import { fromDateTimeInput, orNull, toDateTimeInput } from "../../lib/format";
-import { useCreateEvent, useUpdateEvent } from "./api";
+import { useCreateEvent, useUpdateEvent, useVenues } from "./api";
 
 interface EventFormState {
   name: string;
   kind: EventKind;
   starts_at: string;
   ends_at: string;
+  /** "" means the venue is typed in below rather than chosen from the list. */
+  venue_id: string;
   venue_name: string;
   venue_address: string;
   details: string;
@@ -26,8 +28,10 @@ function initialState(event: WeddingEvent | null): EventFormState {
     kind: event?.kind ?? "other",
     starts_at: toDateTimeInput(event?.starts_at),
     ends_at: toDateTimeInput(event?.ends_at),
-    venue_name: event?.venue_name ?? "",
-    venue_address: event?.venue_address ?? "",
+    venue_id: event?.venue_id ?? "",
+    // With a venue chosen the API reports its details here; keep the typed-in fields empty.
+    venue_name: event?.venue_id ? "" : (event?.venue_name ?? ""),
+    venue_address: event?.venue_id ? "" : (event?.venue_address ?? ""),
     details: event?.details ?? "",
     rsvp_deadline: event?.rsvp_deadline ?? "",
   };
@@ -50,6 +54,8 @@ export function EventFormModal({ weddingId, event, onClose }: Props) {
   const [form, setForm] = useState<EventFormState>(() => initialState(event));
   const create = useCreateEvent(weddingId);
   const update = useUpdateEvent(weddingId);
+  const venues = useVenues(weddingId);
+  const chosenVenue = venues.data?.find((v) => v.id === form.venue_id) ?? null;
   const mutation = event ? update : create;
   const toast = useToast();
   const fieldErrors = mutation.error instanceof ApiError ? mutation.error.fieldErrors : {};
@@ -66,8 +72,9 @@ export function EventFormModal({ weddingId, event, onClose }: Props) {
       // Naive wall-clock times at the venue, without a time zone.
       starts_at: fromDateTimeInput(form.starts_at),
       ends_at: fromDateTimeInput(form.ends_at),
-      venue_name: orNull(form.venue_name),
-      venue_address: orNull(form.venue_address),
+      venue_id: form.venue_id || null,
+      venue_name: form.venue_id ? null : orNull(form.venue_name),
+      venue_address: form.venue_id ? null : orNull(form.venue_address),
       details: orNull(form.details),
       rsvp_deadline: form.rsvp_deadline || null,
     };
@@ -144,14 +151,35 @@ export function EventFormModal({ weddingId, event, onClose }: Props) {
           onChange={(e) => set("ends_at", e.target.value)}
           error={endsBeforeStart ? "The end must be after the start." : fieldErrors.ends_at}
         />
-        <TextField
-          label="Venue name"
-          optional
-          maxLength={200}
-          value={form.venue_name}
-          onChange={(e) => set("venue_name", e.target.value)}
-          error={fieldErrors.venue_name}
-        />
+        {venues.data && venues.data.length > 0 ? (
+          <SelectField
+            label="Venue"
+            value={form.venue_id}
+            onChange={(e) => set("venue_id", e.target.value)}
+            hint={
+              chosenVenue
+                ? "Its name and address go on invitations and into guests' calendars."
+                : "Pick one from your venue list, or type the details in below."
+            }
+          >
+            <option value="">Type the venue in by hand</option>
+            {venues.data.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.name}
+                {v.status === "booked" ? " (booked)" : ""}
+              </option>
+            ))}
+          </SelectField>
+        ) : (
+          <TextField
+            label="Venue name"
+            optional
+            maxLength={200}
+            value={form.venue_name}
+            onChange={(e) => set("venue_name", e.target.value)}
+            error={fieldErrors.venue_name}
+          />
+        )}
         <TextField
           label="Reply by"
           type="date"
@@ -161,14 +189,33 @@ export function EventFormModal({ weddingId, event, onClose }: Props) {
           onChange={(e) => set("rsvp_deadline", e.target.value)}
           error={fieldErrors.rsvp_deadline}
         />
-        <TextAreaField
-          className="span-2"
-          label="Venue address"
-          optional
-          rows={2}
-          value={form.venue_address}
-          onChange={(e) => set("venue_address", e.target.value)}
-        />
+        {chosenVenue ? (
+          <div className="span-2 small muted">
+            <strong>{chosenVenue.name}</strong>
+            {chosenVenue.address ? `, ${chosenVenue.address}` : ", no address on the venue yet"}
+          </div>
+        ) : (
+          <>
+            {venues.data && venues.data.length > 0 && (
+              <TextField
+                label="Venue name"
+                optional
+                maxLength={200}
+                value={form.venue_name}
+                onChange={(e) => set("venue_name", e.target.value)}
+                error={fieldErrors.venue_name}
+              />
+            )}
+            <TextAreaField
+              className="span-2"
+              label="Venue address"
+              optional
+              rows={2}
+              value={form.venue_address}
+              onChange={(e) => set("venue_address", e.target.value)}
+            />
+          </>
+        )}
         <TextAreaField
           className="span-2"
           label="Details for guests"

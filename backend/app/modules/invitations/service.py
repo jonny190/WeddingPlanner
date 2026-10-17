@@ -158,6 +158,13 @@ def delete_draft(
 # --- Rendering ------------------------------------------------------------------------------
 
 
+def calendar_url(public_app_url: str, guest: Guest, event_id: uuid.UUID) -> str:
+    """The guest's calendar file for one event. Mirrors ``rsvp.calendar.ics_url`` (that
+    module depends on this one, so the path is spelled out here; a test keeps them equal)."""
+    base = public_app_url.rstrip("/")
+    return f"{base}/api/v1/public/rsvp/{guest.rsvp_token}/calendar.ics?event={event_id}"
+
+
 def guest_values(
     *,
     guest: Guest,
@@ -165,6 +172,7 @@ def guest_values(
     event: Event,
     plus_one_allowed: bool,
     link: str,
+    public_app_url: str | None = None,
 ) -> dict[str, str]:
     return build_values(
         first_name=guest.first_name,
@@ -173,6 +181,7 @@ def guest_values(
         event=event,
         plus_one_allowed=plus_one_allowed,
         rsvp_url=link,
+        calendar_url=calendar_url(public_app_url, guest, event.id) if public_app_url else "",
     )
 
 
@@ -227,6 +236,7 @@ def preview_draft(
         event=event,
         plus_one_allowed=plus_one,
         link=rsvp_url(public_app_url, guest),
+        public_app_url=public_app_url,
     )
     rendered = _render_email(
         subject=data.subject if data.subject is not None else draft.subject,
@@ -315,6 +325,7 @@ def send_draft(
             event=event,
             plus_one_allowed=invitation.plus_one_allowed,
             link=tracked_url(public_app_url, token),
+            public_app_url=public_app_url,
         )
         rendered = _render_email(
             subject=draft.subject,

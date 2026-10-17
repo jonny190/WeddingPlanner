@@ -138,6 +138,8 @@ export interface WeddingEvent {
   name: string;
   starts_at: ISODateTime | null;
   ends_at: ISODateTime | null;
+  /** A venue from the wedding's list; while set it supplies venue_name and venue_address. */
+  venue_id: string | null;
   venue_name: string | null;
   venue_address: string | null;
   details: string | null;
@@ -150,10 +152,70 @@ export interface EventInput {
   kind: EventKind;
   starts_at: ISODateTime | null;
   ends_at: ISODateTime | null;
+  venue_id?: string | null;
   venue_name: string | null;
   venue_address: string | null;
   details: string | null;
   rsvp_deadline: ISODate | null;
+}
+
+// --- Venues ----------------------------------------------------------------------------
+
+export type VenueStatus = "considering" | "shortlisted" | "booked" | "declined";
+
+export interface VenueContact {
+  id: string;
+  name: string;
+  role: string | null;
+  email: string | null;
+  phone: string | null;
+}
+
+export interface VenueContactInput {
+  name: string;
+  role: string | null;
+  email: string | null;
+  phone: string | null;
+}
+
+export interface Venue {
+  id: string;
+  wedding_id: string;
+  name: string;
+  status: VenueStatus;
+  address: string | null;
+  website: string | null;
+  email: string | null;
+  phone: string | null;
+  capacity: number | null;
+  /** Hire price, per-head price and deposit, in `currency`. */
+  price: number | null;
+  price_per_head: number | null;
+  deposit: number | null;
+  currency: string;
+  price_notes: string | null;
+  notes: string | null;
+  created_at: ISODateTime;
+  contacts: VenueContact[];
+  /** The events this venue has been chosen for. */
+  used_for: { event_id: string; event_name: string }[];
+}
+
+export interface VenueInput {
+  name: string;
+  status: VenueStatus;
+  address: string | null;
+  website: string | null;
+  email: string | null;
+  phone: string | null;
+  capacity: number | null;
+  price: number | null;
+  price_per_head: number | null;
+  deposit: number | null;
+  currency: string;
+  price_notes: string | null;
+  notes: string | null;
+  contacts: VenueContactInput[];
 }
 
 export interface Wedding {
