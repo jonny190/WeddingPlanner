@@ -110,3 +110,33 @@ class ForgotPasswordRequest(BaseModel):
 class PasswordResetRequest(BaseModel):
     token: str
     new_password: str = Field(min_length=8, max_length=200)
+
+
+class ApiKeyCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    # Without this the key only reads. With it, the key can do what its owner's role allows.
+    can_write: bool = False
+    # Also lets the key queue email: sending invitations, test sends, member invitations.
+    can_send: bool = False
+    # Leave empty for a key that does not expire.
+    expires_in_days: int | None = Field(default=None, ge=1, le=365)
+
+
+class ApiKeyRead(BaseModel):
+    id: uuid.UUID
+    name: str
+    # The first characters of the key, e.g. "wp_a1b2c3d4", to tell keys apart.
+    prefix: str
+    can_write: bool
+    can_send: bool
+    user_id: uuid.UUID
+    user_name: str
+    created_at: datetime
+    expires_at: datetime | None
+    last_used_at: datetime | None
+
+
+class ApiKeyCreated(ApiKeyRead):
+    """Returned once, when the key is made: the only time the secret itself is shown."""
+
+    key: str

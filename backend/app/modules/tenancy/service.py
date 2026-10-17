@@ -21,7 +21,7 @@ from app.core.security import (
 from app.modules.notifications.email import EmailBackend
 from app.modules.tenancy.context import TenantContext
 from app.modules.tenancy.emails import invite_email, password_reset_email
-from app.modules.tenancy.models import Membership, MembershipInvite, Role, Tenant, User
+from app.modules.tenancy.models import ApiKey, Membership, MembershipInvite, Role, Tenant, User
 from app.modules.tenancy.schemas import (
     InviteAccept,
     InviteCreate,
@@ -147,6 +147,7 @@ def invite_member(
     mailer: EmailBackend,
 ) -> InviteRead:
     """Email someone an invitation to join the account. Nothing changes until they accept."""
+    ctx.require_send()
     if data.role == Role.owner and ctx.role != Role.owner:
         raise Forbidden("Only owners can invite other owners")
     email = normalise_email(data.email)
@@ -355,5 +356,8 @@ def remove_member(db: Session, ctx: TenantContext, membership_id: uuid.UUID) -> 
     if membership.role == Role.owner and ctx.role != Role.owner:
         raise Forbidden("Only owners can remove other owners")
     _ensure_another_owner(db, membership)
+    # Their API keys for this account go with them; the session is bound to the account.
+    for key in db.scalars(select(ApiKey).where(ApiKey.user_id == membership.user_id)):
+        db.delete(key)
     db.delete(membership)
     db.commit()

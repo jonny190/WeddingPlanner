@@ -21,6 +21,7 @@ import {
   useRevokeInvite,
   useUpdateMember,
 } from "./api";
+import { ApiKeysCard } from "./ApiKeysCard";
 import { CreateAccountForm } from "./CreateAccountForm";
 import "./account.css";
 
@@ -32,7 +33,7 @@ const ROLE_HELP: Record<Role, string> = {
 };
 
 export default function AccountPage() {
-  const { currentTenant, user, isAdmin } = useSession();
+  const { currentTenant, user, isAdmin, canEdit } = useSession();
 
   return (
     <div className="content-narrow stack-lg">
@@ -44,6 +45,9 @@ export default function AccountPage() {
 
       {currentTenant && <AccountNameCard key={currentTenant.id} name={currentTenant.name} canRename={isAdmin} />}
       {currentTenant && <MembersCard currentUserId={user?.id ?? ""} isAdmin={isAdmin} />}
+      {currentTenant && (
+        <ApiKeysCard key={`keys-${currentTenant.id}`} currentUserId={user?.id ?? ""} isAdmin={isAdmin} canEdit={canEdit} />
+      )}
 
       <section className="card">
         <header className="card-header">

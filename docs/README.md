@@ -7,5 +7,7 @@ deployment. The notes here go deeper on particular areas.
   policy work, and what to keep in mind when changing them.
 - `guest-invitation.md`: the page a guest lands on, how it is laid out as one letter, and how
   the sealed envelope animation is built.
+- `mcp.md`: API keys, and the MCP server that offers the planner as tools to agents; how
+  tenancy is enforced on both.
 
 User-facing instructions live in `guides/`.

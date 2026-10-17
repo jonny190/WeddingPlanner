@@ -89,6 +89,18 @@ def main() -> None:
     with urllib.request.urlopen(f"{BASE}/rsvp/{opened['rsvp_token']}", timeout=15) as page:
         assert b'<div id="root">' in page.read()
     print("✓ Web app served for RSVP links")
+
+    made = call("POST", f"{BASE}/api/v1/tenants/current/api-keys", {"name": "smoke"}, auth)
+    answer = call("POST", f"{BASE}/api/mcp", {
+        "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+        "params": {"name": "whoami", "arguments": {}},
+    }, {
+        "Authorization": f"Bearer {made['key']}",
+        "Accept": "application/json, text/event-stream",
+        "MCP-Protocol-Version": "2025-06-18",
+    })
+    assert answer["result"]["structuredContent"]["account_name"] == "Smoke Test Weddings", answer
+    print("✓ MCP server answers an API key through nginx")
     print("Smoke test passed.")
 
 
