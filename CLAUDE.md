@@ -45,6 +45,7 @@ make up && python3 deploy/smoke_test.py # the Docker stack, through nginx
 | Seating solver | `backend/app/modules/seating/solver.py` (pure, unit tested) |
 | Menus and dish choices | `backend/app/modules/menus/`, `frontend/src/modules/menus/`; the guest picks in `frontend/src/modules/rsvp/RsvpForm.tsx` |
 | Guest-facing pages | `frontend/src/modules/rsvp/` (see `docs/guest-invitation.md`) |
+| API keys, and the MCP server that offers the planner as tools to agents | `backend/app/modules/tenancy/api_keys.py`, `backend/app/modules/mcp/`, `frontend/src/modules/account/ApiKeysCard.tsx` (see `docs/mcp.md`) |
 | The envelope reveal and its settings | `frontend/src/components/envelope/`, `EnvelopeStyle` in `backend/app/modules/invitations/design.py`, Envelope tab in `frontend/src/modules/invitations/DraftEditor.tsx` |
 
 ## History
@@ -52,4 +53,6 @@ make up && python3 deploy/smoke_test.py # the Docker stack, through nginx
 Built 12 October 2026. On 13 October 2026 the member flow changed from "admin sets a password"
 to email invitations, password change and reset were added, abuse limits were added to the
 public and auth routes, the worker got a heartbeat so slow batches are not re-sent, fonts moved
-in-house, and nginx gained a content security policy. See `docs/security.md`.
+in-house, and nginx gained a content security policy. See `docs/security.md`. On 17 October
+2026 API keys and the MCP server at `/api/mcp` were added so agents such as Hermes can work in
+an account; see `docs/mcp.md`.

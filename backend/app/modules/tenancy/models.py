@@ -68,3 +68,27 @@ class MembershipInvite(IdMixin, TimestampMixin, TenantScoped, Base):
 
     invited_by: Mapped[User | None] = relationship(lazy="joined")
     tenant: Mapped[Tenant] = relationship(lazy="joined")
+
+
+class ApiKey(IdMixin, TimestampMixin, TenantScoped, Base):
+    """A long-lived credential for software (an agent, a script) to act within one account as
+    one of its members. Only a hash of the secret is stored; the secret itself is shown once,
+    when the key is created."""
+
+    __tablename__ = "api_keys"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(100))
+    # The first characters of the key, so people can tell their keys apart in a list.
+    prefix: Mapped[str] = mapped_column(String(16))
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    # Without can_write the key only reads, whatever its owner's role. can_send additionally
+    # lets it queue email to guests and members.
+    can_write: Mapped[bool] = mapped_column(default=False)
+    can_send: Mapped[bool] = mapped_column(default=False)
+    expires_at: Mapped[datetime | None] = mapped_column()
+    last_used_at: Mapped[datetime | None] = mapped_column()
+
+    user: Mapped[User] = relationship(lazy="joined")

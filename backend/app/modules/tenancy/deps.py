@@ -1,4 +1,9 @@
-"""FastAPI dependencies other modules use to authenticate and scope requests."""
+"""FastAPI dependencies other modules use to authenticate and scope requests.
+
+Two kinds of credential arrive in the ``Authorization: Bearer`` header: a login token from
+the web app, and an API key (``wp_...``) held by software such as an agent. A key is bound to
+one account, so it also decides the tenant; a login token needs the ``X-Tenant-ID`` header.
+"""
 
 import uuid
 from typing import Annotated
@@ -13,8 +18,9 @@ from app.core.db import bind_tenant, get_db
 from app.core.errors import BadRequest, Forbidden, Unauthorized
 from app.core.security import decode_access_token
 from app.modules.notifications.email import EmailBackend
+from app.modules.tenancy.api_keys import API_KEY_PREFIX, context_for, resolve_api_key
 from app.modules.tenancy.context import TenantContext
-from app.modules.tenancy.models import Membership, Role, User
+from app.modules.tenancy.models import ApiKey, Membership, Role, User
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -36,6 +42,7 @@ Mailer = Annotated[EmailBackend, Depends(get_email_backend)]
 
 
 def get_optional_user(
+    request: Request,
     db: DB,
     settings: AppSettings,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
@@ -43,7 +50,13 @@ def get_optional_user(
     """The signed-in user if a bearer token was sent, else None. A bad token is an error."""
     if credentials is None:
         return None
-    user_id = decode_access_token(credentials.credentials, settings)
+    token = credentials.credentials
+    if token.startswith(API_KEY_PREFIX):
+        key = resolve_api_key(db, token)
+        # Remembered for get_tenant_context, which binds the key's account.
+        request.state.api_key = key
+        return key.user
+    user_id = decode_access_token(token, settings)
     user = db.get(User, user_id) if user_id else None
     if user is None or not user.is_active:
         raise Unauthorized("Your session has expired, please sign in again")
@@ -61,10 +74,17 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 def get_tenant_context(
+    request: Request,
     db: DB,
     user: CurrentUser,
     tenant_id: Annotated[uuid.UUID | None, Header(alias="X-Tenant-ID")] = None,
 ) -> TenantContext:
+    key: ApiKey | None = getattr(request.state, "api_key", None)
+    if key is not None:
+        # The key names the account; the header is optional and must agree if sent.
+        if tenant_id is not None and tenant_id != key.tenant_id:
+            raise Forbidden("This API key belongs to a different account", code="wrong_tenant")
+        return context_for(db, key)
     if tenant_id is None:
         raise BadRequest("The X-Tenant-ID header is required", code="tenant_required")
     membership = db.scalar(

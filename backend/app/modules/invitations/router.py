@@ -100,9 +100,11 @@ def send_draft(
     data: SendRequest,
     db: DB,
     settings: AppSettings,
-    _ctx: EditorTenant,
+    ctx: EditorTenant,
 ):
     """Queue this draft for the chosen audience. Use dry_run to see who would receive it."""
+    if not data.dry_run:
+        ctx.require_send()
     return service.send_draft(db, wedding_id, event_id, draft_id, data, settings.public_app_url)
 
 
@@ -122,6 +124,7 @@ def send_test(
     ctx: EditorTenant,
 ):
     # Test sends go to any address, so cap how many one person can fire off.
+    ctx.require_send()
     check_per_user(request, "email", ctx.user_id, "rate_limit_email_per_hour", 3600)
     return service.send_test(
         db, wedding_id, event_id, draft_id, data.email, data.guest_id, settings.public_app_url
@@ -156,7 +159,8 @@ def list_deliveries(
 @router.post(
     "/weddings/{wedding_id}/events/{event_id}/deliveries/retry-failed", response_model=BulkResult
 )
-def retry_failed(wedding_id: uuid.UUID, event_id: uuid.UUID, db: DB, _ctx: EditorTenant):
+def retry_failed(wedding_id: uuid.UUID, event_id: uuid.UUID, db: DB, ctx: EditorTenant):
+    ctx.require_send()
     return BulkResult(affected=service.retry_failed(db, wedding_id, event_id))
 
 

@@ -95,6 +95,33 @@ export interface InviteAccept {
   password?: string;
 }
 
+/** A credential for software (an agent such as Hermes) to act in this account as you. */
+export interface ApiKey {
+  id: string;
+  name: string;
+  /** The first characters of the key, to tell keys apart. The rest is never shown again. */
+  prefix: string;
+  can_write: boolean;
+  can_send: boolean;
+  user_id: string;
+  user_name: string;
+  created_at: string;
+  expires_at: string | null;
+  last_used_at: string | null;
+}
+
+export interface ApiKeyCreate {
+  name: string;
+  can_write: boolean;
+  can_send: boolean;
+  expires_in_days?: number | null;
+}
+
+/** Returned once, when a key is made: the only time the secret is shown. */
+export interface ApiKeyCreated extends ApiKey {
+  key: string;
+}
+
 export interface PasswordChange {
   current_password: string;
   new_password: string;

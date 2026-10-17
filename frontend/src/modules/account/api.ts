@@ -1,7 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { qk } from "../../api/queryKeys";
-import type { Invite, InviteCreate, Member, PasswordChange, Role, Tenant } from "../../api/types";
+import type {
+  ApiKey,
+  ApiKeyCreate,
+  ApiKeyCreated,
+  Invite,
+  InviteCreate,
+  Member,
+  PasswordChange,
+  Role,
+  Tenant,
+} from "../../api/types";
 import { useSession } from "../../auth/session";
 
 export function useMembers() {
@@ -47,6 +57,27 @@ export function useRevokeInvite() {
   return useMutation({
     mutationFn: (id: string) => api.delete(`/tenants/current/invites/${id}`),
     onSuccess: () => void qc.invalidateQueries({ queryKey: qk.invites }),
+  });
+}
+
+/** Your own API keys, or every key in the account for admins and owners. */
+export function useApiKeys() {
+  return useQuery({ queryKey: qk.apiKeys, queryFn: () => api.get<ApiKey[]>("/tenants/current/api-keys") });
+}
+
+export function useCreateApiKey() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: ApiKeyCreate) => api.post<ApiKeyCreated>("/tenants/current/api-keys", data),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: qk.apiKeys }),
+  });
+}
+
+export function useRevokeApiKey() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/tenants/current/api-keys/${id}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: qk.apiKeys }),
   });
 }
 

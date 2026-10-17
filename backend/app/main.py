@@ -1,3 +1,6 @@
+from collections.abc import AsyncIterator
+from contextlib import AsyncExitStack, asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
@@ -15,6 +18,15 @@ from app.modules.notifications.email import EmailBackend, build_email_backend
 from app.modules.tenancy.deps import DB
 
 
+@asynccontextmanager
+async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Run whatever the installed modules need alive for as long as the app is."""
+    async with AsyncExitStack() as stack:
+        for module_lifespan in app.state.module_lifespans:
+            await stack.enter_async_context(module_lifespan)
+        yield
+
+
 def create_app(
     settings: Settings | None = None,
     engine: Engine | None = None,
@@ -30,6 +42,7 @@ def create_app(
         openapi_url="/api/openapi.json",
         docs_url="/api/docs",
         redoc_url=None,
+        lifespan=_lifespan,
     )
     app.state.settings = settings
     app.state.engine = engine
@@ -39,6 +52,7 @@ def create_app(
     # Invitations to guests go through the outbox and the worker instead.
     app.state.email_backend = email_backend or build_email_backend(settings)
     app.state.rate_limiter = RateLimiter()
+    app.state.module_lifespans = []
 
     register_error_handlers(app)
     if settings.cors_origin_list:
@@ -57,6 +71,11 @@ def create_app(
             app.include_router(module.router, prefix="/api/v1")
         if module.public_router is not None:
             app.include_router(module.public_router, prefix="/api/v1/public")
+    for module in modules:
+        if module.install is not None:
+            lifespan = module.install(app)
+            if lifespan is not None:
+                app.state.module_lifespans.append(lifespan)
 
     @app.get("/api/health", tags=["Health"])
     def health(db: DB):

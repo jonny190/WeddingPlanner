@@ -4,7 +4,7 @@ from fastapi import APIRouter, Request, status
 
 from app.core.errors import NotFound
 from app.core.ratelimit import AuthAttempt, PublicRequest, check_per_user
-from app.modules.tenancy import service
+from app.modules.tenancy import api_keys, service
 from app.modules.tenancy.deps import (
     DB,
     AdminTenant,
@@ -16,6 +16,9 @@ from app.modules.tenancy.deps import (
 )
 from app.modules.tenancy.models import Tenant
 from app.modules.tenancy.schemas import (
+    ApiKeyCreate,
+    ApiKeyCreated,
+    ApiKeyRead,
     ForgotPasswordRequest,
     InviteAccept,
     InviteCreate,
@@ -178,3 +181,27 @@ def accept_invite(
 ):
     """Join the account. Signed-in users accept as themselves; others create a login first."""
     return service.accept_invite(db, token, data, user, settings)
+
+
+# --- API keys: how agents and scripts act within the account -------------------------------
+
+
+@router.get("/tenants/current/api-keys", response_model=list[ApiKeyRead])
+def list_api_keys(db: DB, ctx: CurrentTenant):
+    """Your own keys; admins and owners see every key in the account."""
+    return api_keys.list_api_keys(db, ctx)
+
+
+@router.post(
+    "/tenants/current/api-keys",
+    response_model=ApiKeyCreated,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_api_key(data: ApiKeyCreate, db: DB, ctx: CurrentTenant):
+    """Make a key for yourself. The secret is in this reply only; it is not shown again."""
+    return api_keys.create_api_key(db, ctx, data)
+
+
+@router.delete("/tenants/current/api-keys/{key_id}", status_code=status.HTTP_204_NO_CONTENT)
+def revoke_api_key(key_id: uuid.UUID, db: DB, ctx: CurrentTenant):
+    api_keys.revoke_api_key(db, ctx, key_id)
