@@ -31,7 +31,7 @@ from app.modules.tenancy import service as tenancy
 from app.modules.tenancy.models import User
 from app.modules.tenancy.schemas import SignupRequest
 from app.modules.weddings import service as weddings
-from app.modules.weddings.models import EventKind
+from app.modules.weddings.models import EventKind, Venue, VenueContact, VenueStatus
 from app.modules.weddings.schemas import WeddingCreate
 
 GROUPS = {
@@ -88,9 +88,59 @@ def seed(email: str, password: str) -> None:
         )
         day = next(e for e in wedding.events if e.kind == EventKind.day)
         evening = next(e for e in wedding.events if e.kind == EventKind.evening)
+        manor = Venue(
+            wedding_id=wedding.id,
+            name="Hartwell Manor",
+            status=VenueStatus.booked,
+            address="Hartwell Lane, Cotswolds, GL54 1AA",
+            website="hartwellmanor.example.com",
+            email="events@hartwellmanor.example.com",
+            phone="01451 000000",
+            capacity=120,
+            price=6500,
+            price_per_head=95,
+            deposit=1500,
+            price_notes="Hire includes the ceremony room and the orangery. Balance due 8 weeks "
+            "before the day.",
+            notes="Loved the orangery for the breakfast. Ask about the fireworks curfew.",
+            contacts=[
+                VenueContact(
+                    name="Priya Shah",
+                    role="Events coordinator",
+                    email="priya@hartwellmanor.example.com",
+                    phone="01451 000001",
+                ),
+                VenueContact(name="Tom Rees", role="Head chef", sort_order=1),
+            ],
+        )
+        db.add_all(
+            [
+                manor,
+                Venue(
+                    wedding_id=wedding.id,
+                    name="The Old Mill",
+                    status=VenueStatus.declined,
+                    address="Mill Lane, Bourton-on-the-Water, GL54 2AA",
+                    capacity=80,
+                    price=4200,
+                    price_per_head=80,
+                    notes="Too small for the evening.",
+                ),
+                Venue(
+                    wedding_id=wedding.id,
+                    name="Ashby Barn",
+                    status=VenueStatus.shortlisted,
+                    address="Ashby Road, Stow-on-the-Wold, GL54 1BB",
+                    capacity=150,
+                    price=5800,
+                    deposit=1000,
+                    notes="Back-up if the Manor falls through.",
+                ),
+            ]
+        )
+        db.flush()
         for event, start in ((day, time(13)), (evening, time(19, 30))):
-            event.venue_name = "Hartwell Manor"
-            event.venue_address = "Hartwell Lane, Cotswolds, GL54 1AA"
+            event.venue_id = manor.id
             event.starts_at = datetime.combine(wedding_date, start)
             event.rsvp_deadline = wedding_date - timedelta(days=60)
         day.details = "Ceremony at 1pm, followed by the wedding breakfast. Dress code: formal."

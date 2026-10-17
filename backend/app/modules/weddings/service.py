@@ -5,7 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.errors import NotFound
-from app.modules.weddings.models import Event, EventKind, Wedding
+from app.modules.weddings.models import Event, EventKind, Venue, Wedding
 from app.modules.weddings.schemas import EventCreate, EventUpdate, WeddingCreate, WeddingUpdate
 
 
@@ -77,8 +77,18 @@ def delete_wedding(db: Session, wedding_id: uuid.UUID) -> None:
     db.commit()
 
 
+def _check_venue(db: Session, wedding_id: uuid.UUID, venue_id: uuid.UUID | None) -> None:
+    """A venue chosen for an event must be one of this wedding's own."""
+    if venue_id is None:
+        return
+    found = db.scalar(select(Venue.id).where(Venue.id == venue_id, Venue.wedding_id == wedding_id))
+    if found is None:
+        raise NotFound("Venue not found")
+
+
 def create_event(db: Session, wedding_id: uuid.UUID, data: EventCreate) -> Event:
     get_wedding(db, wedding_id)
+    _check_venue(db, wedding_id, data.venue_id)
     values = data.model_dump()
     if values["sort_order"] is None:
         current_max = db.scalar(
@@ -95,8 +105,15 @@ def update_event(
     db: Session, wedding_id: uuid.UUID, event_id: uuid.UUID, data: EventUpdate
 ) -> Event:
     event = get_event(db, wedding_id, event_id)
-    for field, value in data.model_dump(exclude_unset=True).items():
+    fields = data.model_dump(exclude_unset=True)
+    if "venue_id" in fields:
+        _check_venue(db, wedding_id, fields["venue_id"])
+    for field, value in fields.items():
         setattr(event, field, value)
+    if "venue_id" in fields:
+        # The joined venue is cached on the instance; reload so the properties see the change.
+        db.flush()
+        db.refresh(event)
     db.commit()
     return event
 

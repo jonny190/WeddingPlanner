@@ -54,7 +54,18 @@ from app.modules.seating.schemas import (
 )
 from app.modules.tenancy.models import Role, Tenant, User
 from app.modules.weddings import service as weddings
-from app.modules.weddings.schemas import EventRead, EventUpdate, WeddingCreate, WeddingRead
+from app.modules.weddings import venues as venue_service
+from app.modules.weddings.models import VenueStatus
+from app.modules.weddings.schemas import (
+    EventRead,
+    EventUpdate,
+    VenueContactIn,
+    VenueCreate,
+    VenueRead,
+    VenueUpdate,
+    WeddingCreate,
+    WeddingRead,
+)
 
 
 class WhoAmI(BaseModel):
@@ -158,19 +169,23 @@ def register(mcp: MCPServer, accounts: Accounts) -> None:  # noqa: PLR0915 - one
         name: str | None = None,
         starts_at: datetime | None = None,
         ends_at: datetime | None = None,
+        venue_id: uuid.UUID | None = None,
         venue_name: str | None = None,
         venue_address: str | None = None,
         details: str | None = None,
         rsvp_deadline: date | None = None,
     ) -> EventRead:
         """Changes data. Set an event's name, times (venue local time), venue, details or
-        reply-by date. Fields left out are unchanged."""
+        reply-by date. Fields left out are unchanged. venue_id chooses a venue from the
+        wedding's list (see list_venues), which then supplies the name and address; use
+        choose_venue to clear it."""
         with accounts.open(ctx, Role.editor) as (db, _):
             data = EventUpdate(
                 **_set(
                     name=name,
                     starts_at=starts_at,
                     ends_at=ends_at,
+                    venue_id=venue_id,
                     venue_name=venue_name,
                     venue_address=venue_address,
                     details=details,
@@ -583,3 +598,109 @@ def register(mcp: MCPServer, accounts: Accounts) -> None:  # noqa: PLR0915 - one
         """Emails queued, sent or failed for a wedding, newest first."""
         with accounts.open(ctx) as (db, _):
             return invitations.list_deliveries(db, wedding_id, event_id=event_id, status=status)
+
+    # --- Venues -----------------------------------------------------------------------------
+
+    @mcp.tool()
+    def list_venues(wedding_id: uuid.UUID, ctx: Context) -> list[VenueRead]:
+        """The venues being considered for a wedding: status, address, prices, contacts,
+        notes, and which events each one is chosen for. Booked venues come first."""
+        with accounts.open(ctx) as (db, _):
+            return venue_service.list_venues(db, wedding_id)
+
+    @mcp.tool()
+    def add_venue(
+        wedding_id: uuid.UUID,
+        name: str,
+        ctx: Context,
+        status: VenueStatus = VenueStatus.considering,
+        address: str | None = None,
+        website: str | None = None,
+        email: str | None = None,
+        phone: str | None = None,
+        capacity: int | None = None,
+        price: float | None = None,
+        price_per_head: float | None = None,
+        deposit: float | None = None,
+        currency: str = "GBP",
+        price_notes: str | None = None,
+        notes: str | None = None,
+        contacts: list[VenueContactIn] = Field(default_factory=list),
+    ) -> VenueRead:
+        """Changes data. Add a venue to the list with its address, how to reach it, prices
+        (hire, per head, deposit, in the given currency), contacts and notes."""
+        with accounts.open(ctx, Role.editor) as (db, _):
+            data = VenueCreate(
+                name=name,
+                status=status,
+                address=address,
+                website=website,
+                email=email,
+                phone=phone,
+                capacity=capacity,
+                price=price,
+                price_per_head=price_per_head,
+                deposit=deposit,
+                currency=currency,
+                price_notes=price_notes,
+                notes=notes,
+                contacts=contacts,
+            )
+            return venue_service.create_venue(db, wedding_id, data)
+
+    @mcp.tool()
+    def update_venue(
+        wedding_id: uuid.UUID,
+        venue_id: uuid.UUID,
+        ctx: Context,
+        name: str | None = None,
+        status: VenueStatus | None = None,
+        address: str | None = None,
+        website: str | None = None,
+        email: str | None = None,
+        phone: str | None = None,
+        capacity: int | None = None,
+        price: float | None = None,
+        price_per_head: float | None = None,
+        deposit: float | None = None,
+        currency: str | None = None,
+        price_notes: str | None = None,
+        notes: str | None = None,
+        contacts: list[VenueContactIn] | None = None,
+    ) -> VenueRead:
+        """Changes data. Update a venue; fields left out are unchanged. Giving contacts
+        replaces the whole list. Mark a venue booked by setting status."""
+        with accounts.open(ctx, Role.editor) as (db, _):
+            data = VenueUpdate(
+                **_set(
+                    name=name,
+                    status=status,
+                    address=address,
+                    website=website,
+                    email=email,
+                    phone=phone,
+                    capacity=capacity,
+                    price=price,
+                    price_per_head=price_per_head,
+                    deposit=deposit,
+                    currency=currency,
+                    price_notes=price_notes,
+                    notes=notes,
+                    contacts=contacts,
+                )
+            )
+            return venue_service.update_venue(db, wedding_id, venue_id, data)
+
+    @mcp.tool()
+    def choose_venue(
+        wedding_id: uuid.UUID,
+        event_id: uuid.UUID,
+        ctx: Context,
+        venue_id: uuid.UUID | None = None,
+    ) -> EventRead:
+        """Changes data. Make a venue from the list the venue for an event, so its name and
+        address go on invitations and into guests' calendar entries. No venue_id clears the
+        choice (the event keeps any venue typed in by hand)."""
+        with accounts.open(ctx, Role.editor) as (db, _):
+            event = weddings.update_event(db, wedding_id, event_id, EventUpdate(venue_id=venue_id))
+            return EventRead.model_validate(event)

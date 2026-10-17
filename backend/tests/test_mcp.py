@@ -165,3 +165,35 @@ def test_the_rest_api_and_mcp_agree(client, api, wedding):
     error, via_mcp = call(client, key, "wedding_summary", wedding_id=wedding["id"])
     via_rest = as_key(api, key).get(f"/weddings/{wedding['id']}/summary").json()
     assert error is None and via_mcp["guests_total"] == via_rest["guests_total"] == 0
+
+
+def test_an_agent_can_track_venues_and_choose_one(client, api, wedding, day):
+    key = make_key(api, can_write=True)["key"]
+    error, venue = call(
+        client,
+        key,
+        "add_venue",
+        wedding_id=wedding["id"],
+        name="Hartwell Manor",
+        address="Hartwell Lane, Cotswolds, GL54 1AA",
+        price=6500,
+        price_per_head=95,
+        contacts=[{"name": "Priya Shah", "role": "Events coordinator"}],
+    )
+    assert error is None, error
+    assert venue["contacts"][0]["name"] == "Priya Shah"
+    error, event = call(
+        client,
+        key,
+        "choose_venue",
+        wedding_id=wedding["id"],
+        event_id=day["id"],
+        venue_id=venue["id"],
+    )
+    assert error is None and event["venue_name"] == "Hartwell Manor"
+    error, venues = call(client, key, "list_venues", wedding_id=wedding["id"])
+    assert venues[0]["used_for"] == [{"event_id": day["id"], "event_name": "Wedding Day"}]
+    error, booked = call(
+        client, key, "update_venue", wedding_id=wedding["id"], venue_id=venue["id"], status="booked"
+    )
+    assert error is None and booked["status"] == "booked"

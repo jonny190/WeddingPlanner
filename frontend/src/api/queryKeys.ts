@@ -14,7 +14,8 @@ export type WeddingSection =
   | "replies-summary"
   | "media"
   | "menu"
-  | "menu-choices";
+  | "menu-choices"
+  | "venues";
 
 export const qk = {
   weddings: ["weddings"] as const,
@@ -33,6 +34,7 @@ export const qk = {
   media: (wid: string) => ["w", wid, "media"] as const,
   menu: (wid: string, eid: string) => ["w", wid, "menu", eid] as const,
   menuChoices: (wid: string, eid: string) => ["w", wid, "menu-choices", eid] as const,
+  venues: (wid: string) => ["w", wid, "venues"] as const,
   fonts: ["invitation-fonts"] as const,
   placeholders: ["invitation-placeholders"] as const,
   members: ["tenant", "members"] as const,

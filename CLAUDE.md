@@ -19,7 +19,7 @@ Read `README.md` first: it explains the architecture, the module layout and ever
 - Tenant-owned tables inherit `TenantScoped`. Never add `tenant_id` filters by hand; the session hook in `core/db.py` does it. Public endpoints resolve a token, then call `bind_tenant`.
 - Every design, upload and email value is validated or escaped on the backend. Keep it that way.
 - New settings go in `core/config.py`, `.env.example` and the README table.
-- Schema changes: edit the models, then `cd backend && uv run alembic revision --autogenerate -m "..."`. CI runs `alembic check` against PostgreSQL, so the migration must match the models exactly. Write migrations in the style of the existing ones (plain `sa.DateTime(timezone=True)`, no batch mode).
+- Schema changes: edit the models, then `cd backend && uv run alembic revision --autogenerate -m "..."`. CI runs `alembic check` against PostgreSQL, so the migration must match the models exactly. Write migrations in the style of the existing ones (plain `sa.DateTime(timezone=True)`). Use `op.batch_alter_table` only when changing an existing table's columns or constraints: SQLite, which development and the e2e tests run on, cannot ALTER those, and on PostgreSQL batch mode issues ordinary ALTERs.
 - Fonts are bundled, not fetched. `FONT_CATALOG` in `backend/app/modules/invitations/design.py` and `frontend/src/modules/invitations/designer/webfonts.ts` must list the same families and weights.
 - The web app sends a strict content security policy from `frontend/security-headers.conf`. Anything loaded from another origin needs adding there.
 - No em dashes in prose or UI copy. Write documentation like a person would.
@@ -42,6 +42,7 @@ make up && python3 deploy/smoke_test.py # the Docker stack, through nginx
 | Abuse limits | `backend/app/core/ratelimit.py`, applied in the routers |
 | Email sending | `backend/app/modules/notifications/email.py`; guest invitations queue in `invitation_deliveries` and `backend/app/worker.py` sends them |
 | Card format and rendering | `backend/app/modules/invitations/design.py`, `rendering.py`, `frontend/.../designer/CardSurface.tsx` |
+| Venues, and the venue chosen for an event (its name and address flow to invitations and calendars) | `backend/app/modules/weddings/venues.py`, the `venue_name`/`venue_address` properties on `Event` in `weddings/models.py`, `frontend/src/modules/venues/` |
 | Seating solver | `backend/app/modules/seating/solver.py` (pure, unit tested) |
 | Menus and dish choices | `backend/app/modules/menus/`, `frontend/src/modules/menus/`; the guest picks in `frontend/src/modules/rsvp/RsvpForm.tsx` |
 | Guest-facing pages | `frontend/src/modules/rsvp/` (see `docs/guest-invitation.md`) |
@@ -55,4 +56,6 @@ to email invitations, password change and reset were added, abuse limits were ad
 public and auth routes, the worker got a heartbeat so slow batches are not re-sent, fonts moved
 in-house, and nginx gained a content security policy. See `docs/security.md`. On 17 October
 2026 API keys and the MCP server at `/api/mcp` were added so agents such as Hermes can work in
-an account; see `docs/mcp.md`.
+an account; see `docs/mcp.md`. The same day, venue tracking was added: venues with prices and
+contacts per wedding, one chosen per event, feeding the invitation placeholders and calendar
+entries (`guides/venues.md`).

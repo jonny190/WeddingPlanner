@@ -3,6 +3,8 @@ import { api } from "../../api/client";
 import { qk } from "../../api/queryKeys";
 import type {
   EventInput,
+  Venue,
+  VenueInput,
   Wedding,
   WeddingCreate,
   WeddingEvent,
@@ -87,4 +89,38 @@ export function useUpdateEvent(weddingId: string) {
 
 export function useDeleteEvent(weddingId: string) {
   return useEventMutation(weddingId, (eventId: string) => api.delete(`/weddings/${weddingId}/events/${eventId}`));
+}
+
+// --- Venues ----------------------------------------------------------------------------
+
+export function useVenues(weddingId: string) {
+  return useQuery({
+    queryKey: qk.venues(weddingId),
+    queryFn: () => api.get<Venue[]>(`/weddings/${weddingId}/venues`),
+  });
+}
+
+/** Venues appear on events (and so on most screens), so refresh the wedding as well. */
+function useVenueMutation<TVars, TResult>(weddingId: string, fn: (vars: TVars) => Promise<TResult>) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["w", weddingId] });
+    },
+  });
+}
+
+export function useCreateVenue(weddingId: string) {
+  return useVenueMutation(weddingId, (data: VenueInput) => api.post<Venue>(`/weddings/${weddingId}/venues`, data));
+}
+
+export function useUpdateVenue(weddingId: string) {
+  return useVenueMutation(weddingId, ({ id, data }: { id: string; data: Partial<VenueInput> }) =>
+    api.patch<Venue>(`/weddings/${weddingId}/venues/${id}`, data),
+  );
+}
+
+export function useDeleteVenue(weddingId: string) {
+  return useVenueMutation(weddingId, (venueId: string) => api.delete(`/weddings/${weddingId}/venues/${venueId}`));
 }

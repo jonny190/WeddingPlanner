@@ -27,6 +27,7 @@ PLACEHOLDERS: dict[str, str] = {
     "rsvp_deadline": "The reply-by date",
     "plus_one": "A line inviting them to bring a guest; empty when they have no plus-one",
     "rsvp_link": "The guest's link to their invitation and reply form (a button in emails)",
+    "calendar_link": "A link that adds the event, with the venue address, to the guest's calendar",
 }
 
 _PLACEHOLDER = re.compile(r"\{\{\s*([a-zA-Z_]+)\s*\}\}")
@@ -62,6 +63,7 @@ def build_values(
     event: Event,
     plus_one_allowed: bool,
     rsvp_url: str,
+    calendar_url: str = "",
 ) -> dict[str, str]:
     event_date = event.starts_at.date() if event.starts_at else wedding.wedding_date
     when = " at ".join(p for p in (format_date(event_date), format_time(event.starts_at)) if p)
@@ -80,6 +82,7 @@ def build_values(
         "rsvp_deadline": format_date(event.rsvp_deadline),
         "plus_one": "You are very welcome to bring a guest." if plus_one_allowed else "",
         "rsvp_link": rsvp_url,
+        "calendar_link": calendar_url,
     }
 
 
@@ -184,6 +187,7 @@ def default_draft(event: Event) -> tuple[str, str]:
         "{{event_name}}\n{{event_when}}\n{{venue_name}}\n{{venue_address}}\n\n"
         "{{plus_one}}\n\n"
         f"{reply}.\n\n{{{{rsvp_link}}}}\n\n"
+        "Add it to your calendar: {{calendar_link}}\n\n"
         "With love,\n{{couple_names}}"
     )
     return subject, body
