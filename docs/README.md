@@ -9,5 +9,7 @@ deployment. The notes here go deeper on particular areas.
   the sealed envelope animation is built.
 - `mcp.md`: API keys, and the MCP server that offers the planner as tools to agents; how
   tenancy is enforced on both.
+- `whatsapp.md`: invitations by WhatsApp through a self-hosted bridge, how numbers and
+  messages are handled, and why the bridge is unofficial.
 
 User-facing instructions live in `guides/`.

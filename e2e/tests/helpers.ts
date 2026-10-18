@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { expect, type APIRequestContext, type Page } from "@playwright/test";
-import { EMAIL_DIR } from "../playwright.config";
+import { EMAIL_DIR, WHATSAPP_DIR } from "../playwright.config";
 
 export interface SentEmail {
   to: string;
@@ -88,4 +88,27 @@ export async function openSection(page: Page, title: string) {
     await section.locator("summary").click();
   }
   await expect(section).toHaveAttribute("open", "");
+}
+
+export interface SentWhatsApp {
+  to: string;
+  text: string;
+}
+
+/** Wait for the worker to deliver WhatsApp messages to `to` (the API's "file" bridge). */
+export async function whatsappTo(to: string, atLeast = 1): Promise<SentWhatsApp[]> {
+  let found: SentWhatsApp[] = [];
+  await expect
+    .poll(
+      () => {
+        const files = fs.existsSync(WHATSAPP_DIR) ? fs.readdirSync(WHATSAPP_DIR).sort() : [];
+        found = files
+          .map((f) => JSON.parse(fs.readFileSync(path.join(WHATSAPP_DIR, f), "utf8")) as SentWhatsApp)
+          .filter((m) => m.to === to);
+        return found.length;
+      },
+      { timeout: 20_000, message: `waiting for a WhatsApp message to ${to}` },
+    )
+    .toBeGreaterThanOrEqual(atLeast);
+  return found;
 }

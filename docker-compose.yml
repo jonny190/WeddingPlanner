@@ -22,6 +22,12 @@ x-backend: &backend
     MEDIA_ROOT: /data/media
     # API processes (uvicorn reads this); raise on bigger servers.
     WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+    # WhatsApp invitations (optional): set WHATSAPP_BACKEND=waha and run `--profile whatsapp`.
+    WHATSAPP_BACKEND: ${WHATSAPP_BACKEND:-none}
+    WAHA_URL: ${WAHA_URL:-http://waha:3000}
+    WAHA_API_KEY: ${WAHA_API_KEY:-waha-dev-key}
+    WAHA_SESSION: ${WAHA_SESSION:-default}
+    PHONE_REGION: ${PHONE_REGION:-GB}
 
 services:
   db:
@@ -114,6 +120,24 @@ services:
       - web
     restart: unless-stopped
 
+  # Optional (`--profile whatsapp`): a self-hosted WhatsApp bridge (WAHA). Pair a phone once
+  # at http://localhost:3000/dashboard, then invitations can go by WhatsApp. Unofficial: see
+  # docs/whatsapp.md before using it with a number you care about.
+  waha:
+    image: devlikeapro/waha:gows-2026.9.2
+    profiles: ["whatsapp"]
+    environment:
+      WAHA_API_KEY: ${WAHA_API_KEY:-waha-dev-key}
+      WAHA_DASHBOARD_USERNAME: ${WAHA_DASHBOARD_USERNAME:-admin}
+      WAHA_DASHBOARD_PASSWORD: ${WAHA_DASHBOARD_PASSWORD:-waha-dev-password}
+      WHATSAPP_RESTART_ALL_SESSIONS: "True"
+      WAHA_LOCAL_STORE_BASE_DIR: /app/.sessions
+    ports:
+      - "${WAHA_BIND:-127.0.0.1}:${WAHA_PORT:-3000}:3000"
+    volumes:
+      - waha-sessions:/app/.sessions
+    restart: unless-stopped
+
   # `make test`: runs the backend test suite in a container.
   tests:
     build:
@@ -124,5 +148,6 @@ services:
 volumes:
   db-data:
   media:
+  waha-sessions:
   caddy-data:
   caddy-config:

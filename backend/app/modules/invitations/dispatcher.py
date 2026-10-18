@@ -9,8 +9,9 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.core.config import Settings
 from app.core.db import utcnow
 from app.modules.guests.models import EventInvitation
-from app.modules.invitations.models import DeliveryStatus, InvitationDelivery
+from app.modules.invitations.models import DeliveryChannel, DeliveryStatus, InvitationDelivery
 from app.modules.notifications.email import EmailBackend, EmailMessage
+from app.modules.notifications.whatsapp import WhatsAppBackend, WhatsAppMessage
 
 logger = logging.getLogger(__name__)
 
@@ -92,24 +93,34 @@ def _record_failure(delivery: InvitationDelivery, error: Exception, max_attempts
 
 
 def dispatch_due_deliveries(
-    session_factory: sessionmaker, backend: EmailBackend, settings: Settings
+    session_factory: sessionmaker,
+    backend: EmailBackend,
+    settings: Settings,
+    whatsapp: WhatsAppBackend | None = None,
 ) -> int:
-    """Send one batch of due emails. Returns how many were attempted."""
+    """Send one batch of due deliveries, by email or WhatsApp. Returns how many were tried."""
     with session_factory() as db:
         _requeue_stale(db)
         batch = _claim(db, settings.worker_batch_size)
         for index, delivery in enumerate(batch):
             _heartbeat(db, batch[index:])
             try:
-                backend.send(
-                    EmailMessage(
-                        to=delivery.to_address or "",
-                        subject=delivery.subject,
-                        text=delivery.body_text,
-                        html=delivery.body_html,
-                        reply_to=delivery.reply_to,
+                if delivery.channel == DeliveryChannel.whatsapp:
+                    if whatsapp is None:
+                        raise RuntimeError("WhatsApp sending is not configured on this worker")
+                    whatsapp.send(
+                        WhatsAppMessage(to=delivery.to_address or "", text=delivery.body_text)
                     )
-                )
+                else:
+                    backend.send(
+                        EmailMessage(
+                            to=delivery.to_address or "",
+                            subject=delivery.subject,
+                            text=delivery.body_text,
+                            html=delivery.body_html,
+                            reply_to=delivery.reply_to,
+                        )
+                    )
             except Exception as exc:  # noqa: BLE001 - any transport error is retried
                 logger.warning("Delivery %s failed: %s", delivery.id, exc)
                 _record_failure(delivery, exc, settings.delivery_max_attempts)

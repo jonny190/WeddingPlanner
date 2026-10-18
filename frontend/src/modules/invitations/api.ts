@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { keepPreviousData, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../api/client";
 import { invalidateWedding, qk } from "../../api/queryKeys";
+import type { ChannelsResponse } from "../../api/types";
 import type {
   BulkResult,
   Delivery,
@@ -174,4 +175,14 @@ export function useUploadImage(weddingId: string) {
     },
     [qc, weddingId],
   );
+}
+
+/** Whether invitations can go by WhatsApp here, and whether the bridge is connected. */
+export function useChannels() {
+  return useQuery({
+    queryKey: qk.channels,
+    queryFn: () => api.get<ChannelsResponse>("/invitation-channels"),
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+  });
 }

@@ -16,7 +16,7 @@ from app.modules.guests.schemas import (
     ImportResult,
     InvitationUpsert,
 )
-from app.modules.tenancy.deps import DB, CurrentTenant, EditorTenant
+from app.modules.tenancy.deps import DB, AppSettings, CurrentTenant, EditorTenant
 
 router = APIRouter(prefix="/weddings/{wedding_id}", tags=["Guests"])
 
@@ -36,12 +36,16 @@ def list_guests(
 
 
 @router.post("/guests", response_model=GuestRead, status_code=status.HTTP_201_CREATED)
-def create_guest(wedding_id: uuid.UUID, data: GuestCreate, db: DB, _ctx: EditorTenant):
-    return service.create_guest(db, wedding_id, data)
+def create_guest(
+    wedding_id: uuid.UUID, data: GuestCreate, db: DB, settings: AppSettings, _ctx: EditorTenant
+):
+    return service.create_guest(db, wedding_id, data, settings.phone_region)
 
 
 @router.post("/guests/import", response_model=ImportResult)
-async def import_guests(wedding_id: uuid.UUID, file: UploadFile, db: DB, _ctx: EditorTenant):
+async def import_guests(
+    wedding_id: uuid.UUID, file: UploadFile, db: DB, settings: AppSettings, _ctx: EditorTenant
+):
     raw = await file.read(MAX_IMPORT_BYTES + 1)
     if len(raw) > MAX_IMPORT_BYTES:
         raise BadRequest("CSV files must be smaller than 2 MB")
@@ -49,7 +53,7 @@ async def import_guests(wedding_id: uuid.UUID, file: UploadFile, db: DB, _ctx: E
         content = raw.decode("utf-8")
     except UnicodeDecodeError:
         content = raw.decode("latin-1")
-    return service.import_guests_csv(db, wedding_id, content)
+    return service.import_guests_csv(db, wedding_id, content, settings.phone_region)
 
 
 @router.get("/guests/export", response_class=Response)
@@ -68,9 +72,14 @@ def get_guest(wedding_id: uuid.UUID, guest_id: uuid.UUID, db: DB, _ctx: CurrentT
 
 @router.patch("/guests/{guest_id}", response_model=GuestRead)
 def update_guest(
-    wedding_id: uuid.UUID, guest_id: uuid.UUID, data: GuestUpdate, db: DB, _ctx: EditorTenant
+    wedding_id: uuid.UUID,
+    guest_id: uuid.UUID,
+    data: GuestUpdate,
+    db: DB,
+    settings: AppSettings,
+    _ctx: EditorTenant,
 ):
-    return service.update_guest(db, wedding_id, guest_id, data)
+    return service.update_guest(db, wedding_id, guest_id, data, settings.phone_region)
 
 
 @router.delete("/guests/{guest_id}", status_code=status.HTTP_204_NO_CONTENT)

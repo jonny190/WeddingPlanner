@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.core.csv_export import to_csv
 from app.core.errors import BadRequest, NotFound
 from app.modules.guests.models import AgeGroup, EventInvitation, Guest
+from app.modules.guests.phones import normalise_phone
 from app.modules.guests.schemas import (
     GuestCreate,
     GuestUpdate,
@@ -92,9 +93,12 @@ def _sync_invitations(guest: Guest, specs: list[InvitationSpec], event_ids: set[
         )
 
 
-def create_guest(db: Session, wedding_id: uuid.UUID, data: GuestCreate) -> Guest:
+def create_guest(
+    db: Session, wedding_id: uuid.UUID, data: GuestCreate, phone_region: str = "GB"
+) -> Guest:
     get_wedding(db, wedding_id)
     guest = Guest(wedding_id=wedding_id, **data.model_dump(exclude={"invitations"}))
+    guest.phone = normalise_phone(guest.phone, phone_region)
     db.add(guest)
     _sync_invitations(guest, data.invitations, _wedding_event_ids(db, wedding_id))
     db.commit()
@@ -102,11 +106,15 @@ def create_guest(db: Session, wedding_id: uuid.UUID, data: GuestCreate) -> Guest
 
 
 def update_guest(
-    db: Session, wedding_id: uuid.UUID, guest_id: uuid.UUID, data: GuestUpdate
+    db: Session,
+    wedding_id: uuid.UUID,
+    guest_id: uuid.UUID,
+    data: GuestUpdate,
+    phone_region: str = "GB",
 ) -> Guest:
     guest = get_guest(db, wedding_id, guest_id)
     for field, value in data.model_dump(exclude_unset=True, exclude={"invitations"}).items():
-        setattr(guest, field, value)
+        setattr(guest, field, normalise_phone(value, phone_region) if field == "phone" else value)
     if data.invitations is not None:
         _sync_invitations(guest, data.invitations, _wedding_event_ids(db, wedding_id))
     db.commit()
@@ -219,7 +227,9 @@ def _primary_event_key(event: Event, events: list[Event]) -> str:
     return event.kind.value if first_of_kind.id == event.id else _column_key(event.name)
 
 
-def import_guests_csv(db: Session, wedding_id: uuid.UUID, content: str) -> ImportResult:
+def import_guests_csv(
+    db: Session, wedding_id: uuid.UUID, content: str, phone_region: str = "GB"
+) -> ImportResult:
     """Import guests from a spreadsheet export.
 
     Recognised columns: first_name, last_name (or a single "name"), email, phone, group,
@@ -253,13 +263,18 @@ def import_guests_csv(db: Session, wedding_id: uuid.UUID, content: str) -> Impor
         if age not in AgeGroup.__members__:
             errors.append(ImportRowError(row=row_number, message=f"Unknown age group '{age}'"))
             continue
+        try:
+            phone = normalise_phone(row.get("phone") or row.get("mobile") or None, phone_region)
+        except BadRequest as exc:
+            errors.append(ImportRowError(row=row_number, message=exc.message))
+            continue
 
         guest = Guest(
             wedding_id=wedding_id,
             first_name=first[:100],
             last_name=last.strip()[:100],
             email=email,
-            phone=row.get("phone") or None,
+            phone=phone,
             group_name=row.get("group") or row.get("group_name") or None,
             age_group=AgeGroup(age),
             dietary_requirements=row.get("dietary_requirements") or row.get("dietary") or None,

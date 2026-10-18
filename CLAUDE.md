@@ -41,6 +41,7 @@ make up && python3 deploy/smoke_test.py # the Docker stack, through nginx
 | Sign in, sign up, invitations to join an account, password change and reset | `backend/app/modules/tenancy/`, `frontend/src/auth/`, `frontend/src/modules/account/` |
 | Abuse limits | `backend/app/core/ratelimit.py`, applied in the routers |
 | Email sending | `backend/app/modules/notifications/email.py`; guest invitations queue in `invitation_deliveries` and `backend/app/worker.py` sends them |
+| WhatsApp sending (bridge, phone numbers, the per-draft message, the way of sending) | `backend/app/modules/notifications/whatsapp.py`, `backend/app/modules/guests/phones.py`, `_reach` in `backend/app/modules/invitations/service.py`, Send and Email tabs in `frontend/src/modules/invitations/` (see `docs/whatsapp.md`) |
 | Card format and rendering | `backend/app/modules/invitations/design.py`, `rendering.py`, `frontend/.../designer/CardSurface.tsx` |
 | Venues, and the venue chosen for an event (its name and address flow to invitations and calendars) | `backend/app/modules/weddings/venues.py`, the `venue_name`/`venue_address` properties on `Event` in `weddings/models.py`, `frontend/src/modules/venues/` |
 | Seating solver | `backend/app/modules/seating/solver.py` (pure, unit tested) |
@@ -58,4 +59,5 @@ in-house, and nginx gained a content security policy. See `docs/security.md`. On
 2026 API keys and the MCP server at `/api/mcp` were added so agents such as Hermes can work in
 an account; see `docs/mcp.md`. The same day, venue tracking was added: venues with prices and
 contacts per wedding, one chosen per event, feeding the invitation placeholders and calendar
-entries (`guides/venues.md`).
+entries (`guides/venues.md`). On 18 October 2026 invitations by WhatsApp were added through a
+self-hosted bridge behind a `WhatsAppBackend` interface (`docs/whatsapp.md`).

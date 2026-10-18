@@ -183,10 +183,11 @@ export function GuestFormModal({ weddingId, events, guest, groups, onClose }: Pr
             error={fieldErrors.email}
           />
           <TextField
-            label="Phone"
+            label="Mobile"
             type="tel"
             optional
             maxLength={50}
+            hint="For WhatsApp invitations. A UK number like 07911 123456, or international with the country code."
             value={form.phone}
             onChange={(e) => set("phone", e.target.value)}
             error={fieldErrors.phone}

@@ -29,11 +29,18 @@ interface Editable {
   name: string;
   subject: string;
   body: string;
+  whatsapp_body: string;
   design: InvitationDesign;
 }
 
 function toEditable(draft: Draft): Editable {
-  return { name: draft.name, subject: draft.subject, body: draft.body, design: draft.design ?? fallbackDesign() };
+  return {
+    name: draft.name,
+    subject: draft.subject,
+    body: draft.body,
+    whatsapp_body: draft.whatsapp_body ?? "",
+    design: draft.design ?? fallbackDesign(),
+  };
 }
 
 interface Props {
@@ -92,6 +99,7 @@ export function DraftEditor({ wedding, event, draft, drafts, canEdit, onClose, o
           name: snapshot.name.trim(),
           subject: snapshot.subject,
           body: snapshot.body,
+          whatsapp_body: snapshot.whatsapp_body,
           design: snapshot.design,
         },
       });
@@ -266,6 +274,8 @@ export function DraftEditor({ wedding, event, draft, drafts, canEdit, onClose, o
             body={current.body}
             onSubject={(subject) => setCurrent((c) => ({ ...c, subject }))}
             onBody={(body) => setCurrent((c) => ({ ...c, body }))}
+            whatsappBody={current.whatsapp_body}
+            onWhatsappBody={(whatsapp_body) => setCurrent((c) => ({ ...c, whatsapp_body }))}
             emailStyle={current.design.email}
             onEmailStyle={(email) => setCurrent((c) => ({ ...c, design: { ...c.design, email } }))}
             placeholders={resources.placeholders}
@@ -300,6 +310,7 @@ export function DraftEditor({ wedding, event, draft, drafts, canEdit, onClose, o
             draftId={draft.id}
             subject={current.subject}
             body={current.body}
+            whatsappBody={current.whatsapp_body}
             design={current.design}
             guests={invitedGuests}
             guestId={previewGuest}

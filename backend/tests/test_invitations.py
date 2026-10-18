@@ -108,7 +108,7 @@ def test_send_queues_once_and_worker_delivers(api, wedding, day, evening, drafts
 
     dry = api.post(f"{drafts}/{draft['id']}/send", json={"dry_run": True}).json()
     assert [r["full_name"] for r in dry["queued"]] == ["Jo Guest"]
-    assert [r["full_name"] for r in dry["skipped_no_email"]] == ["Nomail Guest"]
+    assert [r["full_name"] for r in dry["skipped"]] == ["Nomail Guest"]
     assert api.get(f"/weddings/{wedding['id']}/deliveries").json() == []
 
     api.post(f"{drafts}/{draft['id']}/send", json={"audience": "unsent"})

@@ -88,6 +88,10 @@ automatically before the new API starts.
   Choosing a venue for an event puts its name and address on the invitations, on the guest's
   page and in the calendar entry guests add from their invitation; `{{calendar_link}}` puts
   that link in the email too.
+- **WhatsApp**: guests with a mobile can get their invitation as a WhatsApp message with the
+  same personal link, through a self-hosted bridge (optional, and unofficial: see
+  `docs/whatsapp.md`). Each draft has a WhatsApp message next to its email, and sending offers
+  email, WhatsApp, or WhatsApp with email as the fallback.
 - **Agents and integrations**: members create **API keys** for software that works in the
   account on their behalf, such as an AI agent. A key is bound to one account and to its
   owner's role, and is read-only unless allowed to make changes, with sending email a further
@@ -127,7 +131,7 @@ layout: `models.py` (tables), `schemas.py` (API contracts), `service.py` (busine
 
 | Module | Responsibility | Depends on |
 |---|---|---|
-| `notifications` | Email transports (SMTP, console, file, in-memory for tests) | – |
+| `notifications` | Email transports (SMTP, console, file, in-memory for tests) and WhatsApp bridges (WAHA, console, file, in-memory) | – |
 | `tenancy` | Tenants, users, memberships, invitations, password resets, API keys, JWT auth, tenant-scoping dependencies | notifications |
 | `weddings` | Weddings, their events (day, evening, other), and venues (`venues.py`) with the venue chosen for each event | tenancy |
 | `guests` | Guests, per-event invitations and plus-ones, CSV import/export | weddings |
@@ -239,8 +243,8 @@ emails point at it.
 
 | Suite | What it covers | Run |
 |---|---|---|
-| Backend (`backend/tests`, 108 tests) | API, tenant isolation, invitations to join an account, password resets, API keys, the MCP server, abuse limits, venues, seating solver, menus and dish choices, invitations, tracking, RSVP, media, config | `cd backend && uv run pytest` (or `make test`) |
-| End-to-end (`e2e/`, Playwright) | Real browser + API + email worker: sign-up and account isolation, joining by invitation, password change and reset, API keys and the MCP server, venues and the calendar address, guests and seating rules, menus and dish choices, designing and sending invitations, tracked links, RSVP, replies | `cd e2e && npm ci && npx playwright install chromium && npm test` |
+| Backend (`backend/tests`, 116 tests) | API, tenant isolation, invitations to join an account, password resets, API keys, the MCP server, abuse limits, venues, seating solver, menus and dish choices, invitations by email and WhatsApp, tracking, RSVP, media, config | `cd backend && uv run pytest` (or `make test`) |
+| End-to-end (`e2e/`, Playwright) | Real browser + API + email worker: sign-up and account isolation, joining by invitation, password change and reset, API keys and the MCP server, venues and the calendar address, invitations by WhatsApp, guests and seating rules, menus and dish choices, designing and sending invitations, tracked links, RSVP, replies | `cd e2e && npm ci && npx playwright install chromium && npm test` |
 | Frontend types | Strict TypeScript across the SPA | `cd frontend && npm run build` |
 
 ```bash
@@ -295,6 +299,9 @@ All settings are environment variables. See `.env.example` and `backend/app/core
 | `DATABASE_URL` | local Postgres | `postgresql+psycopg://user:pass@host:5432/db` |
 | `PUBLIC_APP_URL` | `http://localhost:8080` | Base for RSVP links, tracked links and email images |
 | `EMAIL_BACKEND` | `smtp` (compose) | `smtp`, `console`, or `file` (writes JSON files to `EMAIL_FILE_DIR`) |
+| `WHATSAPP_BACKEND` | `none` | `waha` (self-hosted bridge, `--profile whatsapp`), `console`, or `file`; `none` hides the channel |
+| `WAHA_URL`, `WAHA_API_KEY`, `WAHA_SESSION` | compose defaults | How to reach the bridge and which session sends |
+| `PHONE_REGION` | `GB` | Country used to read mobile numbers typed without a country code |
 | `EMAIL_FROM`, `SMTP_*` | Mailpit | Host, port, username, password, `SMTP_STARTTLS`, `SMTP_SSL` |
 | `MEDIA_ROOT` | `/data/media` | Uploaded images (a Docker volume) |
 | `CORS_ORIGINS` | – | Only needed if the SPA is served from a different origin |
@@ -323,6 +330,8 @@ All settings are environment variables. See `.env.example` and `backend/app/core
       limit on `/api/v1/auth/*` and `/api/v1/public/*` as well.
 - [ ] The web app sends a content security policy (`frontend/security-headers.conf`). If you
       add a script, image or API host, update it.
+- [ ] If you turn on WhatsApp through the bridge, use a number you could lose: it works
+      against WhatsApp's terms. Keep the bridge's port off the internet (`WAHA_BIND`).
 
 ## Not built yet
 

@@ -47,6 +47,16 @@ class Settings(BaseSettings):
     worker_batch_size: int = 50
     delivery_max_attempts: int = 3
 
+    # WhatsApp invitations go through a bridge: "waha" (self-hosted WAHA), "console", "file"
+    # (JSON files, used by the end-to-end tests) or "none", which hides the channel entirely.
+    whatsapp_backend: Literal["none", "waha", "console", "file"] = "none"
+    whatsapp_file_dir: str = "./sent-whatsapp"
+    waha_url: str = "http://waha:3000"
+    waha_api_key: str | None = None
+    waha_session: str = "default"
+    # How to read a mobile number typed without a country code (ISO 3166 country code).
+    phone_region: str = "GB"
+
     # Abuse limits, counted per client IP (or per user where noted) in each API process.
     # Set a limit to 0 to switch that bucket off.
     rate_limit_auth_per_minute: int = 10  # sign in, sign up, forgotten password

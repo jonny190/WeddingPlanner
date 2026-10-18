@@ -16,6 +16,7 @@ interface Props {
   draftId: string;
   subject: string;
   body: string;
+  whatsappBody: string;
   design: InvitationDesign;
   /** Guests invited to this event. */
   guests: Guest[];
@@ -33,10 +34,27 @@ function useDebounced<T>(value: T, ms: number): T {
   return debounced;
 }
 
-export function PreviewTab({ weddingId, eventId, draftId, subject, body, design, guests, guestId, onGuestId }: Props) {
+export function PreviewTab({
+  weddingId,
+  eventId,
+  draftId,
+  subject,
+  body,
+  whatsappBody,
+  design,
+  guests,
+  guestId,
+  onGuestId,
+}: Props) {
   const input = useMemo(
-    () => ({ guest_id: guestId, subject: subject.trim() ? subject : null, body: body.trim() ? body : null, design }),
-    [guestId, subject, body, design],
+    () => ({
+      guest_id: guestId,
+      subject: subject.trim() ? subject : null,
+      body: body.trim() ? body : null,
+      whatsapp_body: whatsappBody.trim() ? whatsappBody : null,
+      design,
+    }),
+    [guestId, subject, body, whatsappBody, design],
   );
   const debounced = useDebounced(input, 350);
   const preview = usePreview(weddingId, eventId, draftId, debounced, true);
@@ -110,6 +128,15 @@ export function PreviewTab({ weddingId, eventId, draftId, subject, body, design,
                   sandbox=""
                   srcDoc={preview.data.html}
                 />
+              </div>
+            </section>
+            <section className="preview-pane">
+              <h3 className="preview-label">
+                <Icon name="phone" size={15} /> WhatsApp
+                <span className="tiny muted"> · to guests with a mobile, when you send by WhatsApp</span>
+              </h3>
+              <div className="whatsapp-bubble" aria-label={`WhatsApp preview for ${preview.data.guest_name}`}>
+                {preview.data.whatsapp_text}
               </div>
             </section>
           </div>

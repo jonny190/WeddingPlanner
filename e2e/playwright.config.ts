@@ -11,6 +11,7 @@ const WEB_PORT = 4173;
 const python = process.env.E2E_PYTHON ?? "uv run --project ../backend python";
 
 export const EMAIL_DIR = path.join(output, "emails");
+export const WHATSAPP_DIR = path.join(output, "whatsapp");
 
 export default defineConfig({
   testDir: "./tests",
@@ -38,6 +39,8 @@ export default defineConfig({
         DATABASE_URL: `sqlite:///${path.join(output, "e2e.db")}`,
         EMAIL_BACKEND: "file",
         EMAIL_FILE_DIR: EMAIL_DIR,
+        WHATSAPP_BACKEND: "file",
+        WHATSAPP_FILE_DIR: WHATSAPP_DIR,
         MEDIA_ROOT: path.join(output, "media"),
         PUBLIC_APP_URL: `http://localhost:${WEB_PORT}`,
         SECRET_KEY: "e2e-secret-key-that-is-at-least-32-bytes",

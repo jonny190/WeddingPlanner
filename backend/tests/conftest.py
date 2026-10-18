@@ -14,6 +14,7 @@ from app.main import create_app
 from app.modules import installed_modules
 from app.modules.invitations.dispatcher import dispatch_due_deliveries
 from app.modules.notifications.email import MemoryEmailBackend
+from app.modules.notifications.whatsapp import MemoryWhatsAppBackend
 
 # 1x1 transparent PNG
 PNG_BYTES = bytes.fromhex(
@@ -60,8 +61,15 @@ def mailbox() -> MemoryEmailBackend:
 
 
 @pytest.fixture
-def client(settings, engine, mailbox):
-    with TestClient(create_app(settings, engine, email_backend=mailbox)) as client:
+def whatsapp() -> MemoryWhatsAppBackend:
+    """A connected WhatsApp bridge that keeps messages in memory."""
+    return MemoryWhatsAppBackend()
+
+
+@pytest.fixture
+def client(settings, engine, mailbox, whatsapp):
+    app = create_app(settings, engine, email_backend=mailbox, whatsapp_backend=whatsapp)
+    with TestClient(app) as client:
         yield client
 
 
@@ -152,11 +160,11 @@ def add_guest(api: Api, wedding: dict, first: str, last: str = "Guest", **fields
 
 
 @pytest.fixture
-def outbox(session_factory, settings):
-    """In-memory mailbox plus a `deliver()` that runs one worker pass."""
+def outbox(session_factory, settings, whatsapp):
+    """In-memory mailbox plus a `deliver()` that runs one worker pass (email and WhatsApp)."""
 
     class Outbox(MemoryEmailBackend):
         def deliver(self) -> int:
-            return dispatch_due_deliveries(session_factory, self, settings)
+            return dispatch_due_deliveries(session_factory, self, settings, whatsapp)
 
     return Outbox()

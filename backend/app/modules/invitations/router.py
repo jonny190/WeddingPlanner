@@ -1,6 +1,7 @@
 import uuid
+from typing import Annotated
 
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, Depends, Request, status
 
 from app.core.ratelimit import PublicRequest, check_per_user
 from app.modules.guests.schemas import BulkResult
@@ -9,6 +10,7 @@ from app.modules.invitations.design import FONT_CATALOG, FontOption
 from app.modules.invitations.models import DeliveryStatus
 from app.modules.invitations.rendering import PLACEHOLDERS
 from app.modules.invitations.schemas import (
+    ChannelsResponse,
     DeliveryRead,
     DraftCreate,
     DraftRead,
@@ -22,7 +24,15 @@ from app.modules.invitations.schemas import (
     SendResult,
     TestSendRequest,
 )
+from app.modules.notifications.whatsapp import WhatsAppBackend
 from app.modules.tenancy.deps import DB, AppSettings, CurrentTenant, EditorTenant
+
+
+def get_whatsapp_backend(request: Request) -> WhatsAppBackend | None:
+    return request.app.state.whatsapp_backend
+
+
+WhatsApp = Annotated[WhatsAppBackend | None, Depends(get_whatsapp_backend)]
 
 router = APIRouter(tags=["Invitations"])
 public_router = APIRouter(prefix="/links", tags=["Public RSVP"], dependencies=[PublicRequest])
@@ -33,6 +43,12 @@ drafts = "/weddings/{wedding_id}/events/{event_id}/invitation-drafts"
 def list_placeholders(_ctx: CurrentTenant):
     """Markers that can be used in a draft's subject and body, e.g. {{first_name}}."""
     return [Placeholder(name=k, description=v) for k, v in PLACEHOLDERS.items()]
+
+
+@router.get("/invitation-channels", response_model=ChannelsResponse)
+def invitation_channels(settings: AppSettings, whatsapp: WhatsApp, _ctx: CurrentTenant):
+    """Whether invitations can go by WhatsApp here, and whether the bridge is connected."""
+    return service.channels(settings, whatsapp)
 
 
 @router.get("/invitation-fonts", response_model=list[FontOption])
@@ -100,12 +116,23 @@ def send_draft(
     data: SendRequest,
     db: DB,
     settings: AppSettings,
+    whatsapp: WhatsApp,
     ctx: EditorTenant,
 ):
-    """Queue this draft for the chosen audience. Use dry_run to see who would receive it."""
+    """Queue this draft for the chosen audience, by email, WhatsApp or WhatsApp with email as
+    the fallback. Use dry_run to see who would receive it and how."""
     if not data.dry_run:
         ctx.require_send()
-    return service.send_draft(db, wedding_id, event_id, draft_id, data, settings.public_app_url)
+    return service.send_draft(
+        db,
+        wedding_id,
+        event_id,
+        draft_id,
+        data,
+        settings.public_app_url,
+        whatsapp_enabled=whatsapp is not None,
+        phone_region=settings.phone_region,
+    )
 
 
 @router.post(
@@ -121,13 +148,23 @@ def send_test(
     request: Request,
     db: DB,
     settings: AppSettings,
+    whatsapp: WhatsApp,
     ctx: EditorTenant,
 ):
     # Test sends go to any address, so cap how many one person can fire off.
     ctx.require_send()
     check_per_user(request, "email", ctx.user_id, "rate_limit_email_per_hour", 3600)
     return service.send_test(
-        db, wedding_id, event_id, draft_id, data.email, data.guest_id, settings.public_app_url
+        db,
+        wedding_id,
+        event_id,
+        draft_id,
+        data.channel,
+        str(data.email or data.phone),
+        data.guest_id,
+        settings.public_app_url,
+        whatsapp_enabled=whatsapp is not None,
+        phone_region=settings.phone_region,
     )
 
 
