@@ -133,7 +133,9 @@ function DeliveryRow({ delivery: d }: { delivery: Delivery }) {
                 <Icon name="mail" size={12} /> Marked as sent (post or in person)
               </>
             ) : (
-              d.to_address
+              <>
+                {d.channel === "whatsapp" && <span className="tag">WhatsApp</span>} {d.to_address}
+              </>
             )}
           </div>
         )}

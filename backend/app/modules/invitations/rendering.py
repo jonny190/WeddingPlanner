@@ -191,3 +191,33 @@ def default_draft(event: Event) -> tuple[str, str]:
         "With love,\n{{couple_names}}"
     )
     return subject, body
+
+
+def default_whatsapp(event: Event) -> str:
+    """A short message for WhatsApp, where the link does the work of the card."""
+    if event.kind == EventKind.evening:
+        opening = "{{couple_names}} would love you to join them for their evening celebrations"
+    else:
+        opening = "{{couple_names}} would love you to join them on their wedding day"
+    return (
+        "Hi {{first_name}}! "
+        f"{opening}: {{{{event_name}}}}, {{{{event_when}}}}.\n\n"
+        "{{plus_one}}\n\n"
+        "Your invitation, with all the details and the reply form, is here:\n{{rsvp_link}}"
+    )
+
+
+@dataclass(frozen=True)
+class RenderedText:
+    text: str
+    unknown_placeholders: list[str]
+
+
+def render_whatsapp(body: str, values: dict[str, str]) -> RenderedText:
+    """Fill a WhatsApp message in. Every message carries the guest's link."""
+    if "rsvp_link" not in {m.group(1).lower() for m in _PLACEHOLDER.finditer(body)}:
+        body = f"{body.rstrip()}\n\n{{{{rsvp_link}}}}"
+    unknown: set[str] = set()
+    text = _substitute(body, values, unknown)
+    text = re.sub(r"\n{3,}", "\n\n", "\n".join(line.rstrip() for line in text.splitlines()))
+    return RenderedText(text=text.strip(), unknown_placeholders=sorted(unknown))

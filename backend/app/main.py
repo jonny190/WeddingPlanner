@@ -15,6 +15,7 @@ from app.core.ratelimit import RateLimiter
 from app.modules import installed_modules
 from app.modules.media.storage import LocalMediaStorage, MediaStorage
 from app.modules.notifications.email import EmailBackend, build_email_backend
+from app.modules.notifications.whatsapp import WhatsAppBackend, build_whatsapp_backend
 from app.modules.tenancy.deps import DB
 
 
@@ -32,6 +33,7 @@ def create_app(
     engine: Engine | None = None,
     media_storage: MediaStorage | None = None,
     email_backend: EmailBackend | None = None,
+    whatsapp_backend: WhatsAppBackend | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
     engine = engine or create_db_engine(settings.database_url)
@@ -51,6 +53,8 @@ def create_app(
     # Transactional mail the API sends straight away (member invitations, password resets).
     # Invitations to guests go through the outbox and the worker instead.
     app.state.email_backend = email_backend or build_email_backend(settings)
+    # None unless a WhatsApp bridge is configured; the send screen then hides the channel.
+    app.state.whatsapp_backend = whatsapp_backend or build_whatsapp_backend(settings)
     app.state.rate_limiter = RateLimiter()
     app.state.module_lifespans = []
 

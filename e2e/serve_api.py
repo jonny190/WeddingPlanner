@@ -22,6 +22,7 @@ from app.core.db import create_db_engine  # noqa: E402
 from app.main import create_app  # noqa: E402
 from app.modules.invitations.dispatcher import dispatch_due_deliveries  # noqa: E402
 from app.modules.notifications.email import build_email_backend  # noqa: E402
+from app.modules.notifications.whatsapp import build_whatsapp_backend  # noqa: E402
 
 
 def main() -> None:
@@ -30,6 +31,7 @@ def main() -> None:
     database.parent.mkdir(parents=True, exist_ok=True)
     database.unlink(missing_ok=True)
     shutil.rmtree(settings.email_file_dir, ignore_errors=True)
+    shutil.rmtree(settings.whatsapp_file_dir, ignore_errors=True)
 
     alembic = Config(str(BACKEND / "alembic.ini"))
     alembic.set_main_option("script_location", str(BACKEND / "alembic"))
@@ -38,11 +40,12 @@ def main() -> None:
 
     app = create_app(settings, create_db_engine(settings.database_url))
     backend = build_email_backend(settings)
+    whatsapp = build_whatsapp_backend(settings)
     stop = threading.Event()
 
     def work() -> None:
         while not stop.is_set():
-            if not dispatch_due_deliveries(app.state.session_factory, backend, settings):
+            if not dispatch_due_deliveries(app.state.session_factory, backend, settings, whatsapp):
                 stop.wait(settings.worker_poll_interval_seconds)
 
     threading.Thread(target=work, daemon=True).start()

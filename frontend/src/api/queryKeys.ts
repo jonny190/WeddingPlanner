@@ -36,6 +36,7 @@ export const qk = {
   menuChoices: (wid: string, eid: string) => ["w", wid, "menu-choices", eid] as const,
   venues: (wid: string) => ["w", wid, "venues"] as const,
   fonts: ["invitation-fonts"] as const,
+  channels: ["invitation-channels"] as const,
   placeholders: ["invitation-placeholders"] as const,
   members: ["tenant", "members"] as const,
   invites: ["tenant", "invites"] as const,

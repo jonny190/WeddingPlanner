@@ -31,6 +31,7 @@ class DeliveryStatus(StrEnum):
 
 class DeliveryChannel(StrEnum):
     email = "email"
+    whatsapp = "whatsapp"
     # Recorded by the couple for invitations handed over or posted.
     manual = "manual"
 
@@ -49,6 +50,8 @@ class InvitationDraft(IdMixin, TimestampMixin, TenantScoped, Base):
     name: Mapped[str] = mapped_column(String(120))
     subject: Mapped[str] = mapped_column(String(255))
     body: Mapped[str] = mapped_column(Text)
+    # The message sent over WhatsApp, with the same placeholders; None means the default.
+    whatsapp_body: Mapped[str | None] = mapped_column(Text)
     # The card design (see invitations/design.py), validated on every write.
     design: Mapped[dict | None] = mapped_column(JSONDocument)
     status: Mapped[DraftStatus] = mapped_column(enum_type(DraftStatus), default=DraftStatus.draft)

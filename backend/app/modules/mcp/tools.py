@@ -29,6 +29,7 @@ from app.modules.invitations.schemas import (
     PreviewRequest,
     SendRequest,
     SendResult,
+    SendVia,
 )
 from app.modules.mcp.server import Accounts
 from app.modules.menus import service as menus
@@ -246,7 +247,8 @@ def register(mcp: MCPServer, accounts: Accounts) -> None:  # noqa: PLR0915 - one
                 notes=notes,
                 invitations=invitations,
             )
-            return GuestRead.model_validate(guests.create_guest(db, wedding_id, data))
+            created = guests.create_guest(db, wedding_id, data, settings.phone_region)
+            return GuestRead.model_validate(created)
 
     @mcp.tool()
     def update_guest(
@@ -277,7 +279,8 @@ def register(mcp: MCPServer, accounts: Accounts) -> None:  # noqa: PLR0915 - one
                     notes=notes,
                 )
             )
-            return GuestRead.model_validate(guests.update_guest(db, wedding_id, guest_id, data))
+            updated = guests.update_guest(db, wedding_id, guest_id, data, settings.phone_region)
+            return GuestRead.model_validate(updated)
 
     @mcp.tool()
     def delete_guest(wedding_id: uuid.UUID, guest_id: uuid.UUID, ctx: Context) -> str:
@@ -564,18 +567,28 @@ def register(mcp: MCPServer, accounts: Accounts) -> None:  # noqa: PLR0915 - one
         ctx: Context,
         audience: Audience = Audience.unsent,
         guest_ids: list[uuid.UUID] = Field(default_factory=list),
+        via: SendVia = SendVia.email,
         dry_run: bool = True,
     ) -> SendResult:
         """Queue a draft to an audience: unsent, pending (no reply yet), opened_no_reply,
-        not_opened, all, or selected (give guest_ids). A dry run (the default) only reports who
-        would receive it and who has no email. Sending for real changes data, emails guests,
-        and needs a key that may send email. Check with the person before sending."""
+        not_opened, all, or selected (give guest_ids). via chooses email, whatsapp, or
+        whatsapp_or_email (WhatsApp to guests with a mobile, email to the rest); WhatsApp
+        needs the server to have a bridge set up. A dry run (the default) only reports who
+        would receive it, how, and who cannot be reached. Sending for real changes data,
+        messages guests, and needs a key that may send. Check with the person first."""
         with accounts.open(ctx, Role.editor) as (db, tenant):
             if not dry_run:
                 tenant.require_send()
-            request = SendRequest(audience=audience, guest_ids=guest_ids, dry_run=dry_run)
+            request = SendRequest(audience=audience, guest_ids=guest_ids, via=via, dry_run=dry_run)
             return invitations.send_draft(
-                db, wedding_id, event_id, draft_id, request, settings.public_app_url
+                db,
+                wedding_id,
+                event_id,
+                draft_id,
+                request,
+                settings.public_app_url,
+                whatsapp_enabled=settings.whatsapp_backend != "none",
+                phone_region=settings.phone_region,
             )
 
     @mcp.tool()

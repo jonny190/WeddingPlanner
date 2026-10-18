@@ -318,3 +318,17 @@
   max-width: 260px;
   overflow-wrap: anywhere;
 }
+
+/* ---------- WhatsApp preview ---------- */
+.whatsapp-bubble {
+  max-width: 420px;
+  padding: 10px 14px;
+  border-radius: 14px 14px 14px 4px;
+  background: #e7f8d4;
+  color: #1f2a1a;
+  font-size: 15px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.08);
+}

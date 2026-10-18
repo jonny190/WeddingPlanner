@@ -1,6 +1,15 @@
 import { useMemo, useState } from "react";
 import { errorMessage } from "../../api/client";
-import type { Audience, Guest, Recipient, SendResult, WeddingEvent } from "../../api/types";
+import type {
+  Audience,
+  ChannelsResponse,
+  DeliveryChannel,
+  Guest,
+  Recipient,
+  SendResult,
+  SendVia,
+  WeddingEvent,
+} from "../../api/types";
 import { useSession } from "../../auth/session";
 import { Button } from "../../components/Button";
 import { useConfirm } from "../../components/ConfirmDialog";
@@ -9,7 +18,7 @@ import { GuestMultiSelect, type PickerOption } from "../../components/GuestPicke
 import { Callout } from "../../components/misc";
 import { useToast } from "../../components/Toasts";
 import { pluralize } from "../../lib/format";
-import { useSendDraft, useSendTest } from "./api";
+import { useChannels, useSendDraft, useSendTest } from "./api";
 import { DeliveryLog } from "./DeliveryLog";
 
 export const AUDIENCES: { id: Audience; title: string; description: string }[] = [
@@ -45,8 +54,31 @@ export const AUDIENCES: { id: Audience; title: string; description: string }[] =
   },
 ];
 
+const VIAS: { id: SendVia; title: string; description: string }[] = [
+  { id: "email", title: "Email", description: "Guests with an email address get the email." },
+  {
+    id: "whatsapp_or_email",
+    title: "WhatsApp, or email for the rest",
+    description: "Guests with a mobile get the WhatsApp message; everyone else with an email gets the email.",
+  },
+  { id: "whatsapp", title: "WhatsApp only", description: "Only guests with a mobile number." },
+];
+
+const CHANNEL_LABEL: Record<DeliveryChannel, string> = { email: "email", whatsapp: "WhatsApp", manual: "by hand" };
+
 export function isAudience(value: string | null): value is Audience {
   return AUDIENCES.some((a) => a.id === value);
+}
+
+function describe(result: SendResult): string {
+  const counts = result.queued.reduce<Partial<Record<DeliveryChannel, number>>>((acc, r) => {
+    if (r.channel) acc[r.channel] = (acc[r.channel] ?? 0) + 1;
+    return acc;
+  }, {});
+  const parts = (Object.entries(counts) as [DeliveryChannel, number][]).map(([c, n]) =>
+    c === "email" ? pluralize(n, "email") : `${pluralize(n, "WhatsApp message")}`,
+  );
+  return parts.join(" and ") || "nothing";
 }
 
 interface Props {
@@ -64,7 +96,11 @@ interface Props {
 
 export function SendTab({ weddingId, event, draftId, guests, initialAudience, dirty, saving, onSave, canEdit }: Props) {
   const { user } = useSession();
+  const channels = useChannels();
+  const whatsapp = channels.data?.whatsapp;
+  const whatsappOn = Boolean(whatsapp?.enabled);
   const [audience, setAudience] = useState<Audience>(initialAudience);
+  const [via, setVia] = useState<SendVia>("email");
   const [selected, setSelected] = useState<string[]>([]);
   const [dryRun, setDryRun] = useState<SendResult | null>(null);
   const [lastSent, setLastSent] = useState<SendResult | null>(null);
@@ -73,11 +109,16 @@ export function SendTab({ weddingId, event, draftId, guests, initialAudience, di
   const toast = useToast();
 
   const options: PickerOption[] = useMemo(
-    () => guests.map((g) => ({ id: g.id, name: g.full_name, detail: g.email ?? "no email" })),
+    () =>
+      guests.map((g) => ({
+        id: g.id,
+        name: g.full_name,
+        detail: [g.email, g.phone].filter(Boolean).join(" · ") || "no email or mobile",
+      })),
     [guests],
   );
 
-  const request = () => ({ audience, guest_ids: audience === "selected" ? selected : [] });
+  const request = () => ({ audience, via, guest_ids: audience === "selected" ? selected : [] });
   const canCheck = audience !== "selected" || selected.length > 0;
 
   const resetChecks = () => {
@@ -98,8 +139,8 @@ export function SendTab({ weddingId, event, draftId, guests, initialAudience, di
     if (!dryRun || dryRun.queued.length === 0) return;
     const ok = await confirm({
       title: `Send to ${pluralize(dryRun.queued.length, "guest")}?`,
-      message: `Each guest receives a personal email with a link to their invitation for ${event.name}. This can't be undone.`,
-      confirmLabel: `Send ${pluralize(dryRun.queued.length, "email")}`,
+      message: `Each guest receives a personal message with a link to their invitation for ${event.name}: ${describe(dryRun)}. This can't be undone.`,
+      confirmLabel: `Send ${describe(dryRun)}`,
       tone: "primary",
     });
     if (!ok) return;
@@ -107,7 +148,7 @@ export function SendTab({ weddingId, event, draftId, guests, initialAudience, di
       const result = await send.mutateAsync({ ...request(), dry_run: false });
       setDryRun(null);
       setLastSent(result);
-      toast.success(`${pluralize(result.queued.length, "email")} queued for sending.`);
+      toast.success(`${describe(result)} queued for sending.`);
     } catch (err) {
       toast.error(err);
     }
@@ -169,6 +210,35 @@ export function SendTab({ weddingId, event, draftId, guests, initialAudience, di
             />
           )}
 
+          {whatsappOn && (
+            <fieldset className="radio-group">
+              <legend className="section-title" style={{ marginBottom: 10 }}>
+                How should it go?
+              </legend>
+              {VIAS.map((v) => (
+                <RadioCard
+                  key={v.id}
+                  name="via"
+                  value={v.id}
+                  checked={via === v.id}
+                  onChange={(value) => {
+                    setVia(value as SendVia);
+                    resetChecks();
+                  }}
+                  title={v.title}
+                  description={v.description}
+                />
+              ))}
+              {whatsapp && via !== "email" && (
+                <Callout tone={whatsapp.connected ? "info" : "warning"} icon="phone">
+                  {whatsapp.connected
+                    ? `WhatsApp messages go from ${whatsapp.number ?? "the connected number"}.`
+                    : `WhatsApp is not ready: ${whatsapp.detail}. Messages will wait in the queue until it is.`}
+                </Callout>
+              )}
+            </fieldset>
+          )}
+
           <div className="row">
             <Button icon="eye" onClick={() => void check()} loading={send.isPending && !dryRun} disabled={!canCheck}>
               Check who will receive it
@@ -179,23 +249,24 @@ export function SendTab({ weddingId, event, draftId, guests, initialAudience, di
           {dryRun && (
             <div className="dry-run" aria-live="polite">
               {dryRun.queued.length === 0 ? (
-                <Callout tone="info">Nobody matches this audience with an email address right now.</Callout>
+                <Callout tone="info">Nobody matches this audience who can be reached this way right now.</Callout>
               ) : (
                 <RecipientList
                   title={`${pluralize(dryRun.queued.length, "guest")} will receive it`}
                   recipients={dryRun.queued}
-                  showEmail
+                  showAddress
                 />
               )}
-              {dryRun.skipped_no_email.length > 0 && (
+              {dryRun.skipped.length > 0 && (
                 <Callout tone="warning">
                   <RecipientList
-                    title={`${pluralize(dryRun.skipped_no_email.length, "guest")} skipped: no email address`}
-                    recipients={dryRun.skipped_no_email}
+                    title={`${pluralize(dryRun.skipped.length, "guest")} can't be reached this way`}
+                    recipients={dryRun.skipped}
+                    showReason
                   />
                   <span className="small">
-                    Add their email on the Guests page, or post their invitation and mark it as sent on the Replies
-                    page.
+                    Add their email or mobile on the Guests page, or post their invitation and mark it as sent on the
+                    Replies page.
                   </span>
                 </Callout>
               )}
@@ -221,10 +292,10 @@ export function SendTab({ weddingId, event, draftId, guests, initialAudience, di
 
           {lastSent && (
             <Callout tone="success">
-              <strong>{pluralize(lastSent.queued.length, "email")} queued.</strong> They'll go out in the next few
-              moments; follow progress in the delivery log below.
-              {lastSent.skipped_no_email.length > 0 &&
-                ` ${pluralize(lastSent.skipped_no_email.length, "guest")} without an email address were skipped.`}
+              <strong>{describe(lastSent)} queued.</strong> They'll go out in the next few moments; follow progress in
+              the delivery log below.
+              {lastSent.skipped.length > 0 &&
+                ` ${pluralize(lastSent.skipped.length, "guest")} couldn't be reached this way and were skipped.`}
             </Callout>
           )}
         </section>
@@ -236,6 +307,7 @@ export function SendTab({ weddingId, event, draftId, guests, initialAudience, di
           guests={guests}
           defaultEmail={user?.email ?? ""}
           dirty={dirty}
+          channels={channels.data}
         />
 
         <DeliveryLog weddingId={weddingId} eventId={event.id} limit={10} />
@@ -244,7 +316,17 @@ export function SendTab({ weddingId, event, draftId, guests, initialAudience, di
   );
 }
 
-function RecipientList({ title, recipients, showEmail }: { title: string; recipients: Recipient[]; showEmail?: boolean }) {
+function RecipientList({
+  title,
+  recipients,
+  showAddress,
+  showReason,
+}: {
+  title: string;
+  recipients: Recipient[];
+  showAddress?: boolean;
+  showReason?: boolean;
+}) {
   const [expanded, setExpanded] = useState(false);
   const shown = expanded ? recipients : recipients.slice(0, 8);
   return (
@@ -254,7 +336,14 @@ function RecipientList({ title, recipients, showEmail }: { title: string; recipi
         {shown.map((r) => (
           <li key={r.guest_id}>
             {r.full_name}
-            {showEmail && r.email && <span className="muted small"> · {r.email}</span>}
+            {showAddress && r.channel && (
+              <span className="muted small">
+                {" "}
+                · {CHANNEL_LABEL[r.channel]}
+                {r.address ? `, ${r.address}` : ""}
+              </span>
+            )}
+            {showReason && r.reason && <span className="muted small"> · {r.reason}</span>}
           </li>
         ))}
       </ul>
@@ -274,6 +363,7 @@ function TestSend({
   guests,
   defaultEmail,
   dirty,
+  channels,
 }: {
   weddingId: string;
   eventId: string;
@@ -281,8 +371,12 @@ function TestSend({
   guests: Guest[];
   defaultEmail: string;
   dirty: boolean;
+  channels: ChannelsResponse | undefined;
 }) {
+  const whatsappOn = Boolean(channels?.whatsapp.enabled);
+  const [channel, setChannel] = useState<"email" | "whatsapp">("email");
   const [email, setEmail] = useState(defaultEmail);
+  const [phone, setPhone] = useState("");
   const [asGuest, setAsGuest] = useState("");
   const sendTest = useSendTest(weddingId, eventId, draftId);
   const toast = useToast();
@@ -294,8 +388,14 @@ function TestSend({
         onSubmit={async (e) => {
           e.preventDefault();
           try {
-            await sendTest.mutateAsync({ email: email.trim(), guest_id: asGuest || null });
-            toast.success(`Test email queued to ${email.trim()}.`);
+            await sendTest.mutateAsync(
+              channel === "whatsapp"
+                ? { channel, phone: phone.trim(), guest_id: asGuest || null }
+                : { channel, email: email.trim(), guest_id: asGuest || null },
+            );
+            toast.success(
+              channel === "whatsapp" ? `Test message queued to ${phone.trim()}.` : `Test email queued to ${email.trim()}.`,
+            );
           } catch {
             // Shown inline below the form.
           }
@@ -303,17 +403,28 @@ function TestSend({
       >
         <h3 className="section-title">Send a test to yourself</h3>
         <p className="small muted" style={{ margin: 0 }}>
-          See exactly what guests will get in their inbox. Test emails don't count as sent invitations.
+          See exactly what guests will get. Test messages don't count as sent invitations.
           {dirty && " It uses the last saved version."}
         </p>
         <div className="test-send-row">
-          <TextField
-            label="Send to"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
+          {whatsappOn && (
+            <SelectField label="Send by" value={channel} onChange={(e) => setChannel(e.target.value as "email" | "whatsapp")}>
+              <option value="email">Email</option>
+              <option value="whatsapp">WhatsApp</option>
+            </SelectField>
+          )}
+          {channel === "whatsapp" ? (
+            <TextField
+              label="Mobile number"
+              type="tel"
+              required
+              placeholder="07700 900123"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+            />
+          ) : (
+            <TextField label="Send to" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          )}
           <SelectField label="Personalise as" value={asGuest} onChange={(e) => setAsGuest(e.target.value)}>
             <option value="">Example guest</option>
             {guests.map((g) => (

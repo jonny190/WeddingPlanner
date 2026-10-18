@@ -5,9 +5,11 @@ from datetime import timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.config import Settings
 from app.core.db import as_utc, bind_tenant, utcnow
 from app.core.errors import BadRequest, NotFound
 from app.modules.guests.models import EventInvitation, Guest, RsvpStatus
+from app.modules.guests.phones import mobile_number, normalise_phone
 from app.modules.guests.service import get_guest
 from app.modules.invitations.design import (
     InvitationDesign,
@@ -27,11 +29,14 @@ from app.modules.invitations.rendering import (
     RenderedInvitation,
     build_values,
     default_draft,
+    default_whatsapp,
     fill_placeholders,
     render_invitation,
+    render_whatsapp,
 )
 from app.modules.invitations.schemas import (
     Audience,
+    ChannelsResponse,
     DeliveryRead,
     DraftCreate,
     DraftUpdate,
@@ -41,9 +46,12 @@ from app.modules.invitations.schemas import (
     Recipient,
     SendRequest,
     SendResult,
+    SendVia,
+    WhatsAppChannel,
 )
 from app.modules.media.schemas import media_path
 from app.modules.media.service import require_assets
+from app.modules.notifications.whatsapp import WhatsAppBackend
 from app.modules.weddings.models import Event, Wedding
 from app.modules.weddings.service import get_event, get_wedding
 
@@ -109,6 +117,7 @@ def create_draft(
 ) -> InvitationDraft:
     event = get_event(db, wedding_id, event_id)
     subject, body = default_draft(event)
+    whatsapp_body = default_whatsapp(event)
     design = default_design(event)
     if data.copy_from_draft_id:
         source = db.scalar(
@@ -120,6 +129,7 @@ def create_draft(
         if source is None:
             raise NotFound("The draft to copy was not found")
         subject, body = source.subject, source.body
+        whatsapp_body = source.whatsapp_body or whatsapp_body
         design = draft_design(source, event)
     draft = InvitationDraft(
         wedding_id=wedding_id,
@@ -127,6 +137,7 @@ def create_draft(
         name=data.name,
         subject=data.subject or subject,
         body=data.body or body,
+        whatsapp_body=data.whatsapp_body or whatsapp_body,
         design=_stored_design(db, wedding_id, data.design or design),
     )
     db.add(draft)
@@ -142,6 +153,9 @@ def update_draft(
         value = getattr(data, field)
         if field in data.model_fields_set and value is not None:
             setattr(draft, field, value)
+    if data.whatsapp_body is not None:
+        # Blank puts the default wording back.
+        draft.whatsapp_body = data.whatsapp_body.strip() or None
     if data.design is not None:
         draft.design = _stored_design(db, wedding_id, data.design)
     db.commit()
@@ -245,11 +259,16 @@ def preview_draft(
         values=values,
         public_app_url=public_app_url,
     )
+    whatsapp_body = data.whatsapp_body if data.whatsapp_body is not None else draft.whatsapp_body
+    whatsapp = render_whatsapp(whatsapp_body or default_whatsapp(event), values)
     return PreviewResponse(
         subject=rendered.subject,
         text=rendered.text,
         html=rendered.html,
-        unknown_placeholders=rendered.unknown_placeholders,
+        whatsapp_text=whatsapp.text,
+        unknown_placeholders=sorted(
+            set(rendered.unknown_placeholders) | set(whatsapp.unknown_placeholders)
+        ),
         guest_name=guest.full_name,
         card=personalised_card(design, values),
         fonts=fonts_for(design.font_families()),
@@ -295,6 +314,25 @@ def _audience(db: Session, event_id: uuid.UUID, request: SendRequest) -> list[Ev
     return sorted(invitations, key=lambda i: (i.guest.last_name, i.guest.first_name))
 
 
+def _reach(guest: Guest, via: SendVia, phone_region: str) -> Recipient:
+    """How this guest is reached for the chosen way of sending, or why they cannot be."""
+    recipient = Recipient(guest_id=guest.id, full_name=guest.full_name)
+    mobile = mobile_number(guest.phone, phone_region)
+    if via in (SendVia.whatsapp, SendVia.whatsapp_or_email) and mobile:
+        return recipient.model_copy(update={"channel": DeliveryChannel.whatsapp, "address": mobile})
+    if via in (SendVia.email, SendVia.whatsapp_or_email) and guest.email:
+        return recipient.model_copy(
+            update={"channel": DeliveryChannel.email, "address": guest.email}
+        )
+    if via == SendVia.email:
+        reason = "no email address"
+    elif via == SendVia.whatsapp:
+        reason = "phone number is not a mobile" if guest.phone else "no mobile number"
+    else:
+        reason = "no mobile number or email address"
+    return recipient.model_copy(update={"reason": reason})
+
+
 def send_draft(
     db: Session,
     wedding_id: uuid.UUID,
@@ -302,21 +340,30 @@ def send_draft(
     draft_id: uuid.UUID,
     request: SendRequest,
     public_app_url: str,
+    *,
+    whatsapp_enabled: bool = False,
+    phone_region: str = "GB",
 ) -> SendResult:
-    """Queue personalised emails for the chosen guests; the worker delivers them."""
+    """Queue personalised messages for the chosen guests; the worker delivers them."""
+    if request.via != SendVia.email and not whatsapp_enabled:
+        raise BadRequest("WhatsApp sending is not set up on this server", code="whatsapp_disabled")
     draft = get_draft(db, wedding_id, event_id, draft_id)
     wedding = get_wedding(db, wedding_id)
     event = get_event(db, wedding_id, event_id)
     design = draft_design(draft, event)
+    whatsapp_body = draft.whatsapp_body or default_whatsapp(event)
     invitations = _audience(db, event_id, request)
 
     queued: list[Recipient] = []
     skipped: list[Recipient] = []
     for invitation in invitations:
         guest = invitation.guest
-        recipient = Recipient(guest_id=guest.id, full_name=guest.full_name, email=guest.email)
-        (queued if guest.email else skipped).append(recipient)
-        if request.dry_run or not guest.email:
+        recipient = _reach(guest, request.via, phone_region)
+        if recipient.channel is None:
+            skipped.append(recipient)
+            continue
+        queued.append(recipient)
+        if request.dry_run:
             continue
         token = secrets.token_urlsafe(24)
         values = guest_values(
@@ -327,37 +374,40 @@ def send_draft(
             link=tracked_url(public_app_url, token),
             public_app_url=public_app_url,
         )
-        rendered = _render_email(
-            subject=draft.subject,
-            body=draft.body,
-            design=design,
-            values=values,
-            public_app_url=public_app_url,
+        delivery = InvitationDelivery(
+            wedding_id=wedding_id,
+            event_id=event_id,
+            draft_id=draft.id,
+            guest_id=guest.id,
+            invitation_id=invitation.id,
+            channel=recipient.channel,
+            tracking_token=token,
+            to_address=recipient.address,
+            reply_to=wedding.contact_email,
+            status=DeliveryStatus.queued,
         )
-        db.add(
-            InvitationDelivery(
-                wedding_id=wedding_id,
-                event_id=event_id,
-                draft_id=draft.id,
-                guest_id=guest.id,
-                invitation_id=invitation.id,
-                channel=DeliveryChannel.email,
-                tracking_token=token,
-                to_address=guest.email,
-                reply_to=wedding.contact_email,
-                subject=rendered.subject,
-                body_text=rendered.text,
-                body_html=rendered.html,
-                status=DeliveryStatus.queued,
+        if recipient.channel == DeliveryChannel.whatsapp:
+            delivery.subject = draft.name
+            delivery.body_text = render_whatsapp(whatsapp_body, values).text
+        else:
+            rendered = _render_email(
+                subject=draft.subject,
+                body=draft.body,
+                design=design,
+                values=values,
+                public_app_url=public_app_url,
             )
-        )
+            delivery.subject = rendered.subject
+            delivery.body_text = rendered.text
+            delivery.body_html = rendered.html
+        db.add(delivery)
 
     if not request.dry_run and queued:
         draft.status = DraftStatus.sent
         draft.last_sent_at = utcnow()
         draft.sent_count += len(queued)
         db.commit()
-    return SendResult(dry_run=request.dry_run, queued=queued, skipped_no_email=skipped)
+    return SendResult(dry_run=request.dry_run, queued=queued, skipped=skipped)
 
 
 def send_test(
@@ -365,31 +415,68 @@ def send_test(
     wedding_id: uuid.UUID,
     event_id: uuid.UUID,
     draft_id: uuid.UUID,
-    email: str,
+    channel: DeliveryChannel,
+    address: str,
     guest_id: uuid.UUID | None,
     public_app_url: str,
+    *,
+    whatsapp_enabled: bool = False,
+    phone_region: str = "GB",
 ) -> InvitationDelivery:
-    """Email a preview to the couple. Its link is not tracked."""
+    """Send a preview to the couple, by email or WhatsApp. Its link is not tracked."""
+    if channel == DeliveryChannel.whatsapp and not whatsapp_enabled:
+        raise BadRequest("WhatsApp sending is not set up on this server", code="whatsapp_disabled")
     preview = preview_draft(
         db, wedding_id, event_id, draft_id, PreviewRequest(guest_id=guest_id), public_app_url
     )
     wedding = get_wedding(db, wedding_id)
-    delivery = InvitationDelivery(
-        wedding_id=wedding_id,
-        event_id=event_id,
-        draft_id=draft_id,
-        channel=DeliveryChannel.email,
-        is_test=True,
-        to_address=email,
-        reply_to=wedding.contact_email,
-        subject=f"[Test] {preview.subject}",
-        body_text=preview.text,
-        body_html=preview.html,
-        status=DeliveryStatus.queued,
-    )
+    if channel == DeliveryChannel.whatsapp:
+        delivery = InvitationDelivery(
+            channel=DeliveryChannel.whatsapp,
+            to_address=normalise_phone(address, phone_region),
+            subject=f"[Test] {preview.subject}",
+            body_text=preview.whatsapp_text,
+        )
+    else:
+        delivery = InvitationDelivery(
+            channel=DeliveryChannel.email,
+            to_address=address,
+            subject=f"[Test] {preview.subject}",
+            body_text=preview.text,
+            body_html=preview.html,
+        )
+    delivery.wedding_id = wedding_id
+    delivery.event_id = event_id
+    delivery.draft_id = draft_id
+    delivery.is_test = True
+    delivery.reply_to = wedding.contact_email
+    delivery.status = DeliveryStatus.queued
     db.add(delivery)
     db.commit()
     return delivery
+
+
+def channels(settings: Settings, whatsapp: WhatsAppBackend | None) -> ChannelsResponse:
+    """What this server can send invitations through, for the send screen."""
+    del settings  # the bridge decides everything today; kept so a per-account choice fits later
+    if whatsapp is None:
+        return ChannelsResponse(
+            whatsapp=WhatsAppChannel(
+                enabled=False,
+                connected=False,
+                detail="WhatsApp sending is not set up on this server",
+            )
+        )
+    status = whatsapp.status()
+    return ChannelsResponse(
+        whatsapp=WhatsAppChannel(
+            enabled=True,
+            connected=status.connected,
+            detail=status.detail,
+            number=status.number,
+            backend=whatsapp.name,
+        )
+    )
 
 
 def mark_sent(

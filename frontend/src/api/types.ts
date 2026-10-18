@@ -448,6 +448,8 @@ export interface Draft {
   name: string;
   subject: string;
   body: string;
+  /** The WhatsApp message; null means the default wording. */
+  whatsapp_body: string | null;
   design: InvitationDesign | null;
   status: DraftStatus;
   last_sent_at: ISODateTime | null;
@@ -460,6 +462,7 @@ export interface DraftCreate {
   name?: string;
   subject?: string | null;
   body?: string | null;
+  whatsapp_body?: string | null;
   design?: InvitationDesign | null;
   copy_from_draft_id?: string | null;
 }
@@ -468,6 +471,8 @@ export interface DraftUpdate {
   name?: string;
   subject?: string;
   body?: string;
+  /** Empty resets the WhatsApp message to the default wording. */
+  whatsapp_body?: string;
   design?: InvitationDesign;
 }
 
@@ -475,6 +480,7 @@ export interface PreviewRequest {
   guest_id?: string | null;
   subject?: string | null;
   body?: string | null;
+  whatsapp_body?: string | null;
   design?: InvitationDesign | null;
 }
 
@@ -482,6 +488,8 @@ export interface PreviewResponse {
   subject: string;
   text: string;
   html: string;
+  /** The WhatsApp message, filled in for the same guest. */
+  whatsapp_text: string;
   unknown_placeholders: string[];
   guest_name: string;
   card: InvitationDesign;
@@ -493,28 +501,50 @@ export type Audience = "unsent" | "pending" | "opened_no_reply" | "not_opened" |
 export interface SendRequest {
   audience: Audience;
   guest_ids?: string[];
+  via?: SendVia;
   dry_run?: boolean;
 }
 
 export interface Recipient {
   guest_id: string;
   full_name: string;
-  email: string | null;
+  /** How and where they are reached, or empty with a reason when they cannot be. */
+  channel: DeliveryChannel | null;
+  address: string | null;
+  reason: string | null;
 }
 
 export interface SendResult {
   dry_run: boolean;
   queued: Recipient[];
-  skipped_no_email: Recipient[];
+  skipped: Recipient[];
 }
 
 export interface TestSendRequest {
-  email: string;
+  channel?: "email" | "whatsapp";
+  email?: string | null;
+  phone?: string | null;
   guest_id?: string | null;
 }
 
 export type DeliveryStatus = "queued" | "sending" | "sent" | "failed" | "skipped";
-export type DeliveryChannel = "email" | "manual";
+export type DeliveryChannel = "email" | "manual" | "whatsapp";
+export type SendVia = "email" | "whatsapp" | "whatsapp_or_email";
+
+export interface WhatsAppChannel {
+  /** False when the server has no WhatsApp bridge configured. */
+  enabled: boolean;
+  connected: boolean;
+  detail: string;
+  number: string | null;
+  backend: string | null;
+}
+
+/** Which ways of sending invitations this server offers. */
+export interface ChannelsResponse {
+  email: boolean;
+  whatsapp: WhatsAppChannel;
+}
 
 export interface Delivery {
   id: string;

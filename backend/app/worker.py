@@ -15,6 +15,7 @@ from app.core.db import create_db_engine
 from app.modules import installed_modules
 from app.modules.invitations.dispatcher import dispatch_due_deliveries
 from app.modules.notifications.email import build_email_backend
+from app.modules.notifications.whatsapp import build_whatsapp_backend
 
 logger = logging.getLogger("app.worker")
 
@@ -25,15 +26,20 @@ def main() -> None:
     settings = get_settings()
     session_factory = sessionmaker(create_db_engine(settings.database_url), expire_on_commit=False)
     backend = build_email_backend(settings)
+    whatsapp = build_whatsapp_backend(settings)
 
     stop = threading.Event()
     for sig in (signal.SIGINT, signal.SIGTERM):
         signal.signal(sig, lambda *_: stop.set())
 
-    logger.info("Worker started (email backend: %s)", settings.email_backend)
+    logger.info(
+        "Worker started (email backend: %s, whatsapp backend: %s)",
+        settings.email_backend,
+        settings.whatsapp_backend,
+    )
     while not stop.is_set():
         try:
-            processed = dispatch_due_deliveries(session_factory, backend, settings)
+            processed = dispatch_due_deliveries(session_factory, backend, settings, whatsapp)
         except Exception:
             logger.exception("Error while dispatching deliveries")
             processed = 0
